@@ -1,0 +1,396 @@
+{{!--
+  ******************************************************************************
+  * @file           : mx_hsp_template.c.hbs
+  * @brief          : {{@root.current_resource}} Peripheral initialization
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  ~--}}
+{{#helper_common_beautifier}}
+{{~assign 'smart' undefined}}
+{{~assign 'generate_smart' false}}
+{{assign "codegen_ctxt" (helper_common_get_codegen_context 'HSP' (get '') @root.EnvVarAPI @root.peripheralsResourceManagerAPI @root.SWConfigurationAPI)~}}
+{{log "HSP template codegen_ctxt:" @root.codegen_ctxt~}}
+{{assign 'current_resource' @root.codegen_ctxt.current_resource~}}
+{{assign 'instances' @root.codegen_ctxt.instances~}}
+{{> SYSTEM fct='system_check_ll_optim'}}
+/**
+  ******************************************************************************
+  * @file           : mx_{{lowercase @root.current_resource}}.c
+  * @brief          : {{@root.current_resource}} Peripheral initialization
+{{> LICENSE}}
+
+
+/* Includes ------------------------------------------------------------------*/
+#include "mx_{{lowercase @root.current_resource}}.h"
+{{> RCC fct='include_rcc'}}
+
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
+/* Private functions prototype------------------------------------------------*/
+/* Exported variables by reference--------------------------------------------*/
+{{assign 'hal_handle_exist' false~}}
+{{#each @root.instances~}}
+  {{~assign 'hsp_cxt' config~}}
+  {{~log "HSP template hsp_cxt:" (toJSON @root.hsp_cxt)~}}
+  {{~assign 'current_resource' current_resource~}}
+  {{~assign 'current_layer' @root.hsp_cxt.info.layer~}}
+  {{~log "HSP template current_resource:" @root.current_resource~}}
+  {{#if (eq @root.current_layer 'HAL')}}
+    {{#unless @root.hal_handle_exist}}
+      {{~assign 'hal_handle_exist' true~}}
+static hal_hsp_handle_t h{{@root.current_resource}};
+    {{/unless}}
+  {{/if}}
+{{/each}}
+{{helper_common_initialize_index~}}
+{{assign 'current_index' (helper_common_get_index @root.current_resource)~}}
+{{assign 'nvic_context' 'undefined'~}}
+{{#each @root.instances}}
+  {{~assign 'hsp_cxt' config~}}
+  {{~assign 'current_resource' current_resource~}}
+  {{~assign 'name' @root.hsp_cxt.name~}}
+  {{~assign 'current_layer' @root.hsp_cxt.info.layer~}}
+  {{~assign 'current_index' (helper_common_get_index @root.current_resource)~}}
+  {{~log "¨HSP template instance:" (toJSON this)~}}
+/******************************************************************************/
+/* Exported functions for {{@root.current_resource}} in {{@root.current_layer}} layer */
+/******************************************************************************/
+{{assign 'fct_name' (helper_common_get_generated_function_name @root.current_resource @root.current_layer @root.current_index @root.current_function @root.from_where)~}}
+{{assign 'current_index' (helper_common_inc_index @root.current_resource)~}}
+{{!
+    Generation of initialization function used in HAL
+~}}
+{{#with @root.hsp_cxt}}
+{{#if (eq @root.current_layer 'HAL')}}
+hal_hsp_handle_t *{{@root.fct_name}}_init(void)
+{
+{{> RCC fct='generate_peripheral_clock_activation' hw_resource=@root.current_resource}}
+  if (HAL_HSP_Init(&h{{@root.current_resource}}, HAL_{{uppercase @root.current_resource}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{> RCC fct='generate_kernel_clock' hw_resource=@root.current_resource sw_resource='HSP'}}
+
+{{> GPIO_HAL fct='init_resource' resource=@root.current_resource init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+
+{{#if (or (not (eq snoop.snpsela 'SIGNAL_NONE')) (not (eq snoop.snpselb 'SIGNAL_NONE')))}}
+{{#with snoop}}
+  hal_hsp_snoop_config_t snoop_config;
+  snoop_config.grpa_signal = HAL_HSP_SNOOP_GRPA_{{snpsela}};
+  snoop_config.grpb_signal = HAL_HSP_SNOOP_GRPB_{{snpselb}};
+
+  if (HAL_HSP_SNOOP_SetSignals(&h{{@root.current_resource}}, &snoop_config) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/with}}
+{{/if}}
+
+{{#with stream}}
+{{#with input_buffer}}
+{{assign 'has_stream_buffer_config' false}}
+{{#each this}}
+{{#if use_channel}}
+{{assign 'has_stream_buffer_config' true}}
+{{/if}}
+{{/each}}
+{{#if @root.has_stream_buffer_config}}
+  hal_hsp_stream_buffer_config_t stream_buffer_config[] =
+  {
+{{#each this}}
+{{#if use_channel}}
+    {
+      .buffer_id = HAL_HSP_STREAM_BUFFER_{{@index}},
+      .direction = HAL_HSP_STREAM_BUFFER_DIR_{{is_tx}},
+      .sync_state = HAL_HSP_STREAM_BUFFER_SYNC_{{#if synchronisation}}ENABLE{{else}}DISABLE{{/if}},
+    },
+{{/if}}
+{{/each}}
+  };
+
+  if (HAL_HSP_STREAM_SetMultiConfig(&h{{@root.current_resource}}, stream_buffer_config,
+                                    (uint32_t)(sizeof(stream_buffer_config) / sizeof(stream_buffer_config[0]))) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{/with}}
+
+{{#if stream_boolean}}
+  if (HAL_HSP_STREAM_EnableIntToFloat(&h{{@root.current_resource}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{/with}}
+
+{{#with trgin}}
+{{#if overrun_interrupt}}
+  if (HAL_HSP_TRGIN_EnableIT(&h{{@root.current_resource}}, HAL_HSP_TRGIN_ERR_IT_OVR) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{#with trgin_block}}
+{{assign 'has_trgin_config' false}}
+{{#each this}}
+{{#if use_channel}}
+{{assign 'has_trgin_config' true}}
+{{/if}}
+{{/each}}
+{{#if @root.has_trgin_config}}
+{{#each this}}
+{{#if use_channel}}
+  hal_hsp_trgin_config_t trgin_config{{@index}} =
+  {
+    .polarity = HAL_HSP_TRGIN_POLARITY_{{polarity}},
+    .source = {{helper_hsp_trgin_source_to_enum triggers}},
+  };
+
+  if (HAL_HSP_TRGIN_SetConfigTriggers(&h{{@root.current_resource}}, HAL_HSP_TRGIN_{{@index}}, &trgin_config{{@index}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{/each}}
+{{/if}}
+{{/with}}
+{{/with}}
+
+{{#with prc_tasks}}
+{{assign 'has_prc_task_config' false}}
+{{#each this}}
+{{#if use_channel}}
+{{assign 'has_prc_task_config' true}}
+{{/if}}
+{{/each}}
+{{#if @root.has_prc_task_config}}
+  hal_hsp_prc_task_config_t prc_task_config[] =
+  {
+{{#each this}}
+{{#if use_channel}}
+    {
+{{#if (eq source 'CSEG')}}
+      .source = HAL_HSP_EVENT_{{add @index 1}}_CSEG,
+{{else if (eq source 'HSEG')}}
+      .source = HAL_HSP_EVENT_{{add @index 1}}_HSEG,
+{{else}}
+      .source = {{source}},
+{{/if}}
+      .sync = {{sync}},
+    },
+{{/if}}
+{{/each}}
+  };
+
+  if (HAL_HSP_PRC_SetMultiTaskConfig(&h{{@root.current_resource}}, prc_task_config,
+                                      (uint32_t)(sizeof(prc_task_config) / sizeof(prc_task_config[0]))) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+
+{{/with}}
+
+{{assign 'has_break_config' false}}
+{{#each break}}
+{{#if use_channel}}
+{{assign 'has_break_config' true}}
+{{/if}}
+{{/each}}
+{{#if @root.has_break_config}}
+  hal_hsp_break_output_config_t break_config[] =
+  {
+{{#each break}}
+{{#if use_channel}}
+    {
+      .output_id = HAL_HSP_BREAK_OUTPUT_{{@index}},
+      .critical_events = {{#if (or spe_ovr firmware memory_access opcode fpu pfct28 pfct29 pfct30 pfct31)}}
+{{#if spe_ovr}}HAL_HSP_BREAK_EVENT_SPE_OVR{{#if (or firmware memory_access opcode fpu pfct28 pfct29 pfct30 pfct31)}} | {{/if}}{{/if}}
+{{#if firmware}}HAL_HSP_BREAK_EVENT_FIRMWARE{{#if (or memory_access opcode fpu pfct28 pfct29 pfct30 pfct31)}} | {{/if}}{{/if}}
+{{#if memory_access}}HAL_HSP_BREAK_EVENT_MEMORY_ACCESS{{#if (or opcode fpu pfct28 pfct29 pfct30 pfct31)}} | {{/if}}{{/if}}
+{{#if opcode}}HAL_HSP_BREAK_EVENT_OPCODE{{#if (or fpu pfct28 pfct29 pfct30 pfct31)}} | {{/if}}{{/if}}
+{{#if fpu}}HAL_HSP_BREAK_EVENT_FPU{{#if (or pfct28 pfct29 pfct30 pfct31)}} | {{/if}}{{/if}}
+{{#if pfct28}}HAL_HSP_BREAK_EVENT_PFCT_28{{#if (or pfct29 pfct30 pfct31)}} | {{/if}}{{/if}}
+{{#if pfct29}}HAL_HSP_BREAK_EVENT_PFCT_29{{#if (or pfct30 pfct31)}} | {{/if}}{{/if}}
+{{#if pfct30}}HAL_HSP_BREAK_EVENT_PFCT_30{{#if (or pfct31)}} | {{/if}}{{/if}}
+{{#if pfct31}}HAL_HSP_BREAK_EVENT_PFCT_31{{/if}}
+{{else}}
+0U{{/if}},
+    },
+{{/if}}
+{{/each}}
+  };
+
+  if (HAL_HSP_BREAK_SetMultiConfigOutput(&h{{@root.current_resource}}, break_config,
+                                         (uint32_t)(sizeof(break_config) / sizeof(break_config[0]))) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+
+{{#with trgo_output}}
+{{assign 'has_trgo_config' false}}
+{{#each this}}
+{{#if use_channel}}
+{{assign 'has_trgo_config' true}}
+{{/if}}
+{{/each}}
+{{#if @root.has_trgo_config}}
+  hal_hsp_trgo_config_t trgo_config[] =
+  {
+{{#each this}}
+{{#if use_channel}}
+    {
+      .trigger_id = HAL_HSP_TRGO_TRIGGER_{{@index}},
+      .source = {{source}},
+    },
+{{/if}}
+{{/each}}
+  };
+
+  if (HAL_HSP_TRGO_SetMultiConfig(&h{{@root.current_resource}}, trgo_config,
+                                  (uint32_t)(sizeof(trgo_config) / sizeof(trgo_config[0]))) != HAL_OK)
+  {
+    return NULL;
+  }
+
+  if (HAL_HSP_TRGO_Enable(&h{{@root.current_resource}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{/with}}
+
+{{#if (not (eq additional.spe_smart_clocking true))}}
+{{assign 'smart' "HAL_HSP_SMARTCLOCKING_SPE"}}
+{{assign 'generate_smart' true}}
+{{/if}}
+{{#if (not (eq additional.mmc_smart_clocking true))}}
+{{#if @root.generate_smart}}
+{{assign 'smart' (concat @root.smart " | HAL_HSP_SMARTCLOCKING_MMC")}}
+{{else}}
+{{assign 'smart' "HAL_HSP_SMARTCLOCKING_MMC"}}
+{{/if}}
+{{assign 'generate_smart' true}}
+{{/if}}
+{{#if (not (eq additional.controller_smart_clocking true))}}
+{{#if @root.generate_smart}}
+{{assign 'smart' (concat @root.smart " | HAL_HSP_SMARTCLOCKING_CTRL")}}
+{{else}}
+{{assign 'smart' "HAL_HSP_SMARTCLOCKING_CTRL"}}
+{{/if}}
+{{assign 'generate_smart' true}}
+{{/if}}
+
+{{#if @root.generate_smart}}
+  if (HAL_HSP_SMARTCLOCKING_Disable(&h{{@root.current_resource}}, (uint32_t)({{@root.smart}})) != HAL_OK)
+  {
+    return NULL;
+  }
+{{else}}
+  /* Smart clocking is enabled by default, no need to enable it */
+{{/if}}
+
+{{#if additional.enable_bram_conflict_access_counter}}
+  if (HAL_HSP_BRAM_EnableConflictAccessCounter(&h{{@root.current_resource}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+
+{{#if (not (eq additional.bram_latency 16))}}
+  if (HAL_HSP_BRAM_SetLatency(&h{{@root.current_resource}}, HAL_HSP_BRAM_LATENCY_{{additional.bram_latency}}_CYCLES) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+
+{{#if additional.lock}}
+  if (HAL_HSP_Lock(&h{{@root.current_resource}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+
+{{#if system.nvic.enable_interrupt}}
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context @root.nvic_context system.nvic.nvic_config.needs @root.current_resource system.nvic.irq_handler_generation)~}}
+{{> CORTEX fct='init' layer=@root.current_layer needs=system.nvic.nvic_config.needs}}
+{{/if}}
+
+{{#if system.nvic.event_enable_interrupt}}
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context @root.nvic_context system.nvic.event_nvic_config.needs @root.current_resource system.nvic.event_irq_handler_generation)~}}
+{{> CORTEX fct='init' layer=@root.current_layer needs=system.nvic.event_nvic_config.needs}}
+{{/if}}
+
+{{#if system.nvic.error_enable_interrupt}}
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context @root.nvic_context system.nvic.error_nvic_config.needs @root.current_resource system.nvic.error_irq_handler_generation)~}}
+{{> CORTEX fct='init' layer=@root.current_layer needs=system.nvic.error_nvic_config.needs}}
+{{/if}}
+
+{{#if system.nvic.fw_event_enable_interrupt}}
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context @root.nvic_context system.nvic.fw_event_nvic_config.needs @root.current_resource system.nvic.fw_event_irq_handler_generation)~}}
+{{> CORTEX fct='init' layer=@root.current_layer needs=system.nvic.fw_event_nvic_config.needs}}
+{{/if}}
+
+  return &h{{@root.current_resource}};
+}
+
+void {{@root.fct_name}}_deinit(void)
+{
+{{#if system.nvic.enable_interrupt}}
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=system.nvic.nvic_config.needs}}
+{{/if}}
+
+{{#if system.nvic.event_enable_interrupt}}
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=system.nvic.event_nvic_config.needs}}
+{{/if}}
+
+{{#if system.nvic.error_enable_interrupt}}
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=system.nvic.error_nvic_config.needs}}
+{{/if}}
+
+{{#if system.nvic.fw_event_enable_interrupt}}
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=system.nvic.fw_event_nvic_config.needs}}
+{{/if}}
+
+  HAL_HSP_DeInit(&h{{@root.current_resource}});
+
+{{> RCC fct='generate_peripheral_clock_deactivation' hw_resource=@root.current_resource}}
+{{> RCC fct='generate_peripheral_clock_reset' hw_resource= @root.current_resource}}
+
+{{> GPIO_HAL fct='deinit_resource' resource=@root.current_resource}}
+
+}
+
+{{assign 'fct_name' (helper_common_get_generated_function_name @root.current_resource @root.current_layer undefined)~}}
+{{!
+    Generation of getHandle functions used in HAL
+~}}
+hal_hsp_handle_t *{{@root.fct_name}}_gethandle(void)
+{
+  return &h{{@root.current_resource}};
+}
+
+{{/if}}
+
+{{> GPIO_HAL fct='init_resource_independently' resource=@root.current_resource init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+
+{{> GPIO_HAL fct='gpio_exti_gethandle' resource=@root.current_resource type='implementation'}}
+{{/with}}
+{{/each}}
+
+{{> CORTEX fct='generate_irqhandler' type='implementation' component='HSP'}}
+{{/helper_common_beautifier}}

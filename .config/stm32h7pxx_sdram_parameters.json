@@ -1,0 +1,3313 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "version": "0.0.1",
+  "componentid": "::Device:STM32CubeMX2 Config:SDRAM",
+  "grammarVersion": "3.8",
+  "type": "object",
+  "functions": [
+    {
+      "path": ".config/template/helpers/common_helpers.js",
+      "accessor": "com"
+    }
+  ],
+  "properties": {
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "info": {
+          "type": "object",
+          "title": "General information",
+          "properties": {
+            "labels": {
+              "type": "array",
+              "title": "Label for peripheral instance",
+              "description": "Labels allow to create aliases inside mx_hal_def.h file like '<label>_init', '<label>_deinit' and '<label>_gethandle'. These aliases can be used on application side.",
+              "items": {
+                "type": "string",
+                "$comment": "[a-zA-Z_][a-zA-Z0-9_]+",
+                "minLength": 0,
+                "maxLength": 32,
+                "unique": "project",
+                "default": "",
+                "actions": [
+                  {
+                    "type": "error",
+                    "condition": "!/^[A-Za-z_][A-Za-z0-9_]*$/.test($value)",
+                    "message": "Name must be a valid C identifier: start with a letter or underscore, and contain only letters, digits, or underscores."
+                  }
+                ]
+              }
+            },
+            "layer": {
+              "type": "string",
+              "title": "Software layer",
+              "oneOf": [
+                {
+                  "title": "HAL",
+                  "const": "HAL"
+                }
+              ],
+              "actions": [
+                {
+                  "type": "disable",
+                  "condition": "$com.helper_common_display_object($resource)",
+                  "message": "This parameter is set automatically for this resource."
+                }
+              ],
+              "variables": [
+                {
+                  "on": "update-value",
+                  "name": "HAL_SDRAM_PROJECT_USE_HAL",
+                  "condition": "$value === 'HAL'",
+                  "semaphore": true
+                }
+              ],
+              "default": "HAL"
+            },
+            "init_type": {
+              "type": "string",
+              "title": "Resource initialization code generation",
+              "description": "Pick whether the initialization code should be generated and automatically called at startup.",
+              "oneOf": [
+                {
+                  "title": "Callable",
+                  "const": "called",
+                  "description": "Initialization code is generated and called in peripheral initialization."
+                },
+                {
+                  "title": "Generated",
+                  "const": "enabled",
+                  "description": "Initialization code is generated but not called in peripheral initialization."
+                },
+                {
+                  "title": "Not generated",
+                  "const": "disabled",
+                  "description": "Initialization code is not generated."
+                }
+              ],
+              "default": "called"
+            }
+          }
+        },
+        "basic": {
+          "type": "object",
+          "title": "Main features",
+          "properties": {
+            "common_config": {
+              "type": "object",
+              "title": "Common",
+              "properties": {
+                "read_pipe_delay": {
+                  "type": "integer",
+                  "title": "Read pipe delay",
+                  "unit": "cycles",
+                  "description": "Read pipe delay in clock cycles for reading data after CAS latency.",
+                  "default": 0,
+                  "oneOf": [
+                    {
+                      "title": "0",
+                      "const": 0
+                    },
+                    {
+                      "title": "1",
+                      "const": 1
+                    },
+                    {
+                      "title": "2",
+                      "const": 2
+                    }
+                  ]
+                },
+                "read_burst": {
+                  "type": "boolean",
+                  "title": "Read burst state",
+                  "default": false,
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                    }
+                  ]
+                },
+                "clock_info": {
+                  "type": "object",
+                  "title": "Clock",
+                  "properties": {
+                    "clock_source": {
+                      "type": "string",
+                      "title": "Clock source",
+                      "description": "Clock source can be modified in clock tree.",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "true",
+                          "computed": {
+                            "const": "$get('clock.input', $resource.parentDescription.name)"
+                          }
+                        }
+                      ],
+                      "default": "Not able to determine"
+                    },
+                    "clock_source_frequency": {
+                      "type": "string",
+                      "title": "Clock source frequency",
+                      "description": "Input clock frequency can be modified in clock tree.",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "($get('clock.frequency',$resource.parentDescription.name)) < 1000000",
+                          "computed": {
+                            "const": "$get('clock.frequency',$resource.parentDescription.name) / 1000 + ' kHz'"
+                          }
+                        },
+                        {
+                          "type": "set",
+                          "condition": "($get('clock.frequency',$resource.parentDescription.name)) >= 1000000",
+                          "computed": {
+                            "const": "$get('clock.frequency',$resource.parentDescription.name) / 1000000 + ' MHz'"
+                          }
+                        }
+                      ],
+                      "default": "Not able to determine"
+                    },
+                    "sdram_clock_divider": {
+                      "type": "integer",
+                      "title": "Clock divider",
+                      "description": "Set the divider from the kernel clock to get the clock.",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "default": "$resource.parentDescription.digitalName === 'c7amba_fmc' ? 2 : ($resource.parentDescription.digitalName === 'c7amba_fmc2' ? 1 : 3)"
+                          }
+                        }
+                      ],
+                      "oneOf": [
+                        {
+                          "title": "DIV1",
+                          "const": 1,
+                          "actions": [
+                           {
+                            "type": "exclude",
+                            "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                           }
+                         ]
+                        },
+                        {
+                          "title": "DIV2",
+                          "const": 2
+                        },
+                        {
+                          "title": "DIV3",
+                          "const": 3
+                        }
+                      ]
+                    },
+                    "clock_memory_frequency": {
+                      "type": "string",
+                      "title": "Clock memory frequency",
+                      "description": "SDRAM clock frequency. This is the frequency at which the memory will operate. It is equal to the input clock frequency divided by the clock prescaler.",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "($get('clock.frequency',$resource.parentDescription.name) / $basic.common_config.clock_info.sdram_clock_divider) < 1000000",
+                          "computed": {
+                            "const": "$get('clock.frequency',$resource.parentDescription.name) / $basic.common_config.clock_info.sdram_clock_divider / 1000 + ' kHz'"
+                          }
+                        },
+                        {
+                          "type": "set",
+                          "condition": "($get('clock.frequency',$resource.parentDescription.name) / $basic.common_config.clock_info.sdram_clock_divider) >= 1000000",
+                          "computed": {
+                            "const": "$get('clock.frequency',$resource.parentDescription.name) / $basic.common_config.clock_info.sdram_clock_divider / 1000000 + ' MHz'"
+                          }
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    }
+                  }
+                },
+                "load_to_active_delay": {
+                  "type": "integer",
+                  "title": "Load to active delay",
+                  "unit": "ns",
+                  "description": "Delay between a load mode register command and an active command or refresh command.",
+                  "display_format": ["dec"],
+                  "minimum": 0,
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                    }
+                  ],
+                  "default": 0
+                },
+                "load_to_active_delay_converted": {
+                  "type": "string",
+                  "title": "Load to active delay conversion",
+                  "readOnly": true,
+                  "actions": [
+                    {
+                      "type": "set",
+                      "condition": "(+($basic.common_config.load_to_active_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                      "computed": {
+                        "const": "((((+($basic.common_config.load_to_active_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                      }
+                    },
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                    }
+                  ],
+                  "default": "Not able to calculate"
+                },
+                "exit_self_refresh_delay": {
+                  "type": "integer",
+                  "title": "Exit self refresh time",
+                  "unit": "ns",
+                  "description": "Delay from releasing the self refresh command to issue the activate command.",
+                  "display_format": ["dec"],
+                  "minimum": 0,
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                    }
+                  ],
+                  "default": 0
+                },
+                "exit_self_refresh_delay_converted": {
+                  "type": "string",
+                  "title": "Exit self refresh time conversion",
+                  "readOnly": true,
+                  "actions": [
+                    {
+                      "type": "set",
+                      "condition": "(+($basic.common_config.exit_self_refresh_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                      "computed": {
+                        "const": "((((+($basic.common_config.exit_self_refresh_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                      }
+                    },
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                    }
+                  ],
+                  "default": "Not able to calculate"
+                },
+                "self_refresh_time": {
+                  "type": "integer",
+                  "title": "Self refresh time",
+                  "unit": "ns",
+                  "description": "Duration between an active command and a precharge command.",
+                  "display_format": ["dec"],
+                  "minimum": 0,
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                    }
+                  ],
+                  "default": 0
+                },
+                "self_refresh_time_converted": {
+                  "type": "string",
+                  "title": "Self refresh time conversion",
+                  "readOnly": true,
+                  "actions": [
+                    {
+                      "type": "set",
+                      "condition": "(+($basic.common_config.self_refresh_time) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                      "computed": {
+                        "const": "((((+($basic.common_config.self_refresh_time) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                      }
+                    },
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                    }
+                  ],
+                  "default": "Not able to calculate"
+                },
+                "row_cycle_delay": {
+                  "type": "integer",
+                  "title": "Row cycle delay",
+                  "unit": "ns",
+                  "description": "Delay between the refresh command and the activate command and the delay between two consecutive commands.",
+                  "display_format": ["dec"],
+                  "minimum": 0,
+                  "default": 0
+                },
+                "row_cycle_delay_converted": {
+                  "type": "string",
+                  "title": "Row cycle delay conversion",
+                  "readOnly": true,
+                  "actions": [
+                    {
+                      "type": "set",
+                      "condition": "(+($basic.common_config.row_cycle_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                      "computed": {
+                        "const": "((((+($basic.common_config.row_cycle_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                      }
+                    }
+                  ],
+                  "default": "Not able to calculate"
+                },
+                "write_recovery_time": {
+                  "type": "integer",
+                  "title": "Write recovery time",
+                  "unit": "ns",
+                  "description": "Delay between a write command and a precharge command.",
+                  "display_format": ["dec"],
+                  "minimum": 0,
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                    }
+                  ],
+                  "default": 0
+                },
+                "write_recovery_time_converted": {
+                  "type": "string",
+                  "title": "Write recovery time conversion",
+                  "readOnly": true,
+                  "actions": [
+                    {
+                      "type": "set",
+                      "condition": "(+($basic.common_config.write_recovery_time) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                      "computed": {
+                        "const": "((((+($basic.common_config.write_recovery_time) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                      }
+                    },
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                    }
+                  ],
+                  "default": "Not able to calculate"
+                },
+                "precharge_command_delay": {
+                  "type": "integer",
+                  "title": "Precharge command",
+                  "unit": "ns",
+                  "description": "Delay between a precharge command and an active or refresh command.",
+                  "display_format": ["dec"],
+                  "minimum": 0,
+                  "default": 0
+                },
+                "precharge_command_delay_converted": {
+                  "type": "string",
+                  "title": "Precharge command conversion",
+                  "readOnly": true,
+                  "actions": [
+                    {
+                      "type": "set",
+                      "condition": "(+($basic.common_config.precharge_command_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                      "computed": {
+                        "const": "((((+($basic.common_config.precharge_command_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                      }
+                    }
+                  ],
+                  "default": "Not able to calculate"
+                },
+                "activate_rd_wr_command_delay": {
+                  "type": "integer",
+                  "title": "Activate read and write command delay",
+                  "unit": "ns",
+                  "description": "Delay between an active command and a read or write command.",
+                  "display_format": ["dec"],
+                  "minimum": 0,
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                    }
+                  ],
+                  "default": 0
+                },
+                "activate_rd_wr_command_delay_converted": {
+                  "type": "string",
+                  "title": "Activate read and write command delay conversion",
+                  "readOnly": true,
+                  "actions": [
+                    {
+                      "type": "set",
+                      "condition": "(+($basic.common_config.activate_rd_wr_command_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                      "computed": {
+                        "const": "((((+($basic.common_config.activate_rd_wr_command_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                      }
+                    },
+                    {
+                      "type": "exclude",
+                      "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc'"
+                    }
+                  ],
+                  "default": "Not able to calculate"
+                },
+                "rows_number": {
+                  "type": "integer",
+                  "title": "Rows number",
+                  "display_format": ["dec"],
+                  "minimum": 0,
+                  "default": 0
+                }
+              }
+            },
+            "memory_config": {
+              "type": "object",
+              "title": "Memory",
+              "properties": {
+                "device_selection": {
+                  "type": "integer",
+                  "title": "Devices",
+                  "oneOf": [
+                    {
+                      "title": "Device 1",
+                      "const": 1
+                    },
+                    {
+                      "title": "Device 2",
+                      "const": 2
+                    },
+                    {
+                      "title": "Device 1 and Device2",
+                      "const": 3
+                    }
+                  ],
+                  "default": 1
+                },
+                "device1": {
+                  "type": "object",
+                  "title": "Device 1",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "$basic.memory_config.device_selection == 1 || $basic.memory_config.device_selection == 3"
+                    }
+                  ],
+                  "properties": {
+                    "memory_bus_width": {
+                      "type": "integer",
+                      "title": "Bus data width",
+                      "unit": "bits",
+                      "default": 8,
+                      "oneOf": [
+                        {
+                          "title": "8",
+                          "const": 8
+                        },
+                        {
+                          "title": "16",
+                          "const": 16
+                        },
+                        {
+                          "title": "32",
+                          "const": 32
+                        }
+                      ]
+                    },
+                    "byte_lane_16_enable": {
+                      "type": "boolean",
+                      "title": "Byte lane (NBL signal)",
+                      "description": "Byte lanes enable selective access to individual bytes within 16-bit or wider data words.",
+                      "default": false,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$basic.memory_config.device1.memory_bus_width == 16"
+                        },
+                        {
+                          "type": "set",
+                          "condition": "$basic.memory_config.device1.memory_bus_width != 16",
+                          "attributes": {
+                            "const": false
+                          }
+                        }
+                      ]
+                    },
+                    "byte_lane_32_enable": {
+                      "type": "boolean",
+                      "title": "Byte lane (NBL signal)",
+                      "description": "Byte lanes enable selective access to individual bytes within 16 bits or wider data words.",
+                      "default": false,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$basic.memory_config.device1.memory_bus_width == 32"
+                        },
+                        {
+                          "type": "set",
+                          "condition": "$basic.memory_config.device1.memory_bus_width != 32",
+                          "attributes": {
+                            "const": false
+                          }
+                        }
+                      ]
+                    },
+                    "intern_banks_num": {
+                      "type": "integer",
+                      "title": "Internal banks number",
+                      "default": 2,
+                      "oneOf": [
+                        {
+                          "title": "2",
+                          "const": 2
+                        },
+                        {
+                          "title": "4",
+                          "const": 4
+                        }
+                      ]
+                    },
+                    "row_address_width": {
+                      "type": "integer",
+                      "title": "Row address width",
+                      "unit": "bits",
+                      "default": 11,
+                      "oneOf": [
+                        {
+                          "title": "11",
+                          "const": 11
+                        },
+                        {
+                          "title": "12",
+                          "const": 12
+                        },
+                        {
+                          "title": "13",
+                          "const": 13
+                        }
+                      ]
+                    },
+                    "column_address_width": {
+                      "type": "integer",
+                      "title": "Column address width",
+                      "unit": "bits",
+                      "default": 8,
+                      "oneOf": [
+                        {
+                          "title": "8",
+                          "const": 8
+                        },
+                        {
+                          "title": "9",
+                          "const": 9
+                        },
+                        {
+                          "title": "10",
+                          "const": 10
+                        },
+                        {
+                          "title": "11",
+                          "const": 11
+                        }
+                      ]
+                    },
+                    "cas_latency": {
+                      "type": "integer",
+                      "title": "CAS latency",
+                      "unit": "cycles",
+                      "description": "The delay in clock cycles, between the registration of a read command and the availability of the first piece of output data.",
+                      "default": 1,
+                      "oneOf": [
+                        {
+                          "title": "1",
+                          "const": 1
+                        },
+                        {
+                          "title": "2",
+                          "const": 2
+                        },
+                        {
+                          "title": "3",
+                          "const": 3
+                        }
+                      ]
+                    },
+                    "load_to_active_delay": {
+                     "type": "integer",
+                     "title": "Load to active delay",
+                     "unit": "ns",
+                     "description": "Delay between a load mode register command and an active command or refresh command.",
+                     "display_format": ["dec"],
+                     "minimum": 0,
+                     "actions": [
+                       {
+                         "type": "exclude",
+                         "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                       }
+                     ],
+                     "default": 0
+                    },
+                    "load_to_active_delay_converted": {
+                      "type": "string",
+                      "title": "Load to active delay conversion",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "(+($basic.memory_config.device1.load_to_active_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                          "computed": {
+                            "const": "((((+($basic.memory_config.device1.load_to_active_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                          }
+                        },
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    },
+                    "exit_self_refresh_delay": {
+                      "type": "integer",
+                      "title": "Exit self refresh time",
+                      "unit": "ns",
+                      "description": "Delay from releasing the self refresh command to issue the activate command.",
+                      "display_format": ["dec"],
+                      "minimum": 0,
+                       "actions": [
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": 0
+                    },
+                    "exit_self_refresh_delay_converted": {
+                      "type": "string",
+                      "title": "Exit self refresh time conversion",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "(+($basic.memory_config.device1.exit_self_refresh_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                          "computed": {
+                            "const": "((((+($basic.memory_config.device1.exit_self_refresh_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                          }
+                        },
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    },
+                    "self_refresh_time": {
+                      "type": "integer",
+                      "title": "Self refresh time",
+                      "unit": "ns",
+                      "description": "Duration between an active command and a precharge command.",
+                      "display_format": ["dec"],
+                      "minimum": 0,
+                      "actions": [
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": 0
+                    },
+                    "self_refresh_time_converted": {
+                      "type": "string",
+                      "title": "Self refresh time conversion",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "(+($basic.memory_config.device1.self_refresh_time) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                          "computed": {
+                            "const": "((((+($basic.memory_config.device1.self_refresh_time) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                          }
+                        },
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    },
+                    "write_recovery_time": {
+                      "type": "integer",
+                      "title": "Write recovery time",
+                      "unit": "ns",
+                      "description": "Delay between a write command and a precharge command.",
+                      "display_format": ["dec"],
+                      "minimum": 0,
+                       "actions": [
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": 0
+                    },
+                    "write_recovery_time_converted": {
+                      "type": "string",
+                      "title": "Write recovery time conversion",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "(+($basic.memory_config.device1.write_recovery_time) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                          "computed": {
+                            "const": "((((+($basic.memory_config.device1.write_recovery_time) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                          }
+                        },
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    },
+                    "activate_rd_wr_command_delay": {
+                      "type": "integer",
+                      "title": "Activate read and write command delay",
+                      "unit": "ns",
+                      "description": "Delay between an active command and a read or write command.",
+                      "display_format": ["dec"],
+                      "minimum": 0,
+                      "actions": [
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": 0
+                    },
+                    "activate_rd_wr_command_delay_converted": {
+                      "type": "string",
+                      "title": "Activate read and write command delay conversion",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "(+($basic.memory_config.device1.activate_rd_wr_command_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                          "computed": {
+                            "const": "((((+($basic.memory_config.device1.activate_rd_wr_command_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                          }
+                        },
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    }
+                  }
+                },
+                "device2": {
+                  "type": "object",
+                  "title": "Device 2",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "$basic.memory_config.device_selection == 2 || $basic.memory_config.device_selection == 3"
+                    }
+                  ],
+                  "properties": {
+                    "memory_bus_width": {
+                      "type": "integer",
+                      "title": "Bus data width",
+                      "unit": "bits",
+                      "default": 8,
+                      "oneOf": [
+                        {
+                          "title": "8",
+                          "const": 8
+                        },
+                        {
+                          "title": "16",
+                          "const": 16
+                        },
+                        {
+                          "title": "32",
+                          "const": 32
+                        }
+                      ]
+                    },
+                    "byte_lane_16_enable": {
+                      "type": "boolean",
+                      "title": "Byte lane (NBL signal)",
+                      "description": "Byte lanes enable selective access to individual bytes within 16-bit or wider data words.",
+                      "default": false,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$basic.memory_config.device2.memory_bus_width == 16"
+                        },
+                        {
+                          "type": "set",
+                          "condition": "$basic.memory_config.device2.memory_bus_width != 16",
+                          "attributes": {
+                            "const": false
+                          }
+                        }
+                      ]
+                    },
+                    "byte_lane_32_enable": {
+                      "type": "boolean",
+                      "title": "Byte lane (NBL signal)",
+                      "description": "Byte lanes enable selective access to individual bytes within 16-bit or wider data words.",
+                      "default": false,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$basic.memory_config.device2.memory_bus_width == 32"
+                        },
+                        {
+                          "type": "set",
+                          "condition": "$basic.memory_config.device2.memory_bus_width != 32",
+                          "attributes": {
+                            "const": false
+                          }
+                        }
+                      ]
+                    },
+                    "intern_banks_num": {
+                      "type": "integer",
+                      "title": "Internal banks number",
+                      "default": 2,
+                      "oneOf": [
+                        {
+                          "title": "2",
+                          "const": 2
+                        },
+                        {
+                          "title": "4",
+                          "const": 4
+                        }
+                      ]
+                    },
+                    "row_address_width": {
+                      "type": "integer",
+                      "title": "Row address width",
+                      "unit": "bits",
+                      "default": 11,
+                      "oneOf": [
+                        {
+                          "title": "11",
+                          "const": 11
+                        },
+                        {
+                          "title": "12",
+                          "const": 12
+                        },
+                        {
+                          "title": "13",
+                          "const": 13
+                        }
+                      ]
+                    },
+                    "column_address_width": {
+                      "type": "integer",
+                      "title": "Column address width",
+                      "unit": "bits",
+                      "default": 8,
+                      "oneOf": [
+                        {
+                          "title": "8",
+                          "const": 8
+                        },
+                        {
+                          "title": "9",
+                          "const": 9
+                        },
+                        {
+                          "title": "10",
+                          "const": 10
+                        },
+                        {
+                          "title": "11",
+                          "const": 11
+                        }
+                      ]
+                    },
+                    "cas_latency": {
+                      "type": "integer",
+                      "title": "CAS latency",
+                      "unit": "cycles",
+                      "description": "The delay in clock cycles, between the registration of a read command and the availability of the first piece of output data.",
+                      "default": 1,
+                      "oneOf": [
+                        {
+                          "title": "1",
+                          "const": 1
+                        },
+                        {
+                          "title": "2",
+                          "const": 2
+                        },
+                        {
+                          "title": "3",
+                          "const": 3
+                        }
+                      ]
+                    },
+                    "load_to_active_delay": {
+                     "type": "integer",
+                     "title": "Load to active delay",
+                     "unit": "ns",
+                     "description": "Delay between a load mode register command and an active command or refresh command.",
+                     "display_format": ["dec"],
+                     "minimum": 0,
+                     "actions": [
+                       {
+                         "type": "exclude",
+                         "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                       }
+                     ],
+                     "default": 0
+                    },
+                    "load_to_active_delay_converted": {
+                      "type": "string",
+                      "title": "Load to active delay conversion",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "(+($basic.memory_config.device2.load_to_active_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                          "computed": {
+                            "const": "((((+($basic.memory_config.device2.load_to_active_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                          }
+                        },
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    },
+                    "exit_self_refresh_delay": {
+                      "type": "integer",
+                      "title": "Exit self refresh time",
+                      "unit": "ns",
+                      "description": "Delay from releasing the self refresh command to issue the activate command.",
+                      "display_format": ["dec"],
+                      "minimum": 0,
+                       "actions": [
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": 0
+                    },
+                    "exit_self_refresh_delay_converted": {
+                      "type": "string",
+                      "title": "Exit self refresh time conversion",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "(+($basic.memory_config.device2.exit_self_refresh_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                          "computed": {
+                            "const": "((((+($basic.memory_config.device2.exit_self_refresh_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                          }
+                        },
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    },
+                    "self_refresh_time": {
+                      "type": "integer",
+                      "title": "Self refresh time",
+                      "unit": "ns",
+                      "description": "Duration between an active command and a precharge command.",
+                      "display_format": ["dec"],
+                      "minimum": 0,
+                      "actions": [
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": 0
+                    },
+                    "self_refresh_time_converted": {
+                      "type": "string",
+                      "title": "Self refresh time conversion",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "(+($basic.memory_config.device2.self_refresh_time) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                          "computed": {
+                            "const": "((((+($basic.memory_config.device2.self_refresh_time) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                          }
+                        },
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    },
+                    "write_recovery_time": {
+                      "type": "integer",
+                      "title": "Write recovery time",
+                      "unit": "ns",
+                      "description": "Delay between a write command and a precharge command.",
+                      "display_format": ["dec"],
+                      "minimum": 0,
+                       "actions": [
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": 0
+                    },
+                    "write_recovery_time_converted": {
+                      "type": "string",
+                      "title": "Write recovery time conversion",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "(+($basic.memory_config.device2.write_recovery_time) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                          "computed": {
+                            "const": "((((+($basic.memory_config.device2.write_recovery_time) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                          }
+                        },
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    },
+                    "activate_rd_wr_command_delay": {
+                      "type": "integer",
+                      "title": "Activate read and write command delay",
+                      "unit": "ns",
+                      "description": "Delay between an active command and a read or write command.",
+                      "display_format": ["dec"],
+                      "minimum": 0,
+                      "actions": [
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": 0
+                    },
+                    "activate_rd_wr_command_delay_converted": {
+                      "type": "string",
+                      "title": "Activate read and write command delay conversion",
+                      "readOnly": true,
+                      "actions": [
+                        {
+                          "type": "set",
+                          "condition": "(+($basic.memory_config.device2.activate_rd_wr_command_delay) >= 0) && ((+($get('clock.frequency','FMC_Clock_Source')  || 0)) > 0)",
+                          "computed": {
+                            "const": "((((+($basic.memory_config.device2.activate_rd_wr_command_delay) * (+($get('clock.frequency','FMC_Clock_Source')||0) / ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_1' ? 1 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_2' ? 2 : ($basic.common_config.clock_info.sdram_clock_divider === 'DIV_3' ? 3 : 1))))) + 1000000000 - 1) / 1000000000)|0) + ' clock cycles'"
+                          }
+                        },
+                        {
+                          "type": "exclude",
+                          "condition": "$resource.parentDescription.digitalName === 'c7amba_fmc2'"
+                        }
+                      ],
+                      "default": "Not able to calculate"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "additional": {
+          "type": "object",
+          "title": "Advanced features",
+          "properties": {
+            "refresh_error_it": {
+              "type": "boolean",
+              "title": "Refresh error interrupt",
+              "description": "Enable the specified refresh error interrupt.",
+              "default": false
+            },
+            "device1_enablewriteprotection": {
+              "type": "boolean",
+              "title": "Write protection for device 1",
+              "description": "When write protection is enabled, the FMC disables write operations to the memory region.",
+              "default": false,
+              "actions": [
+                {
+                  "type": "include",
+                  "condition": "$basic.memory_config.device_selection == 1 || $basic.memory_config.device_selection == 3"
+                }
+              ]
+            },
+            "device2_enablewriteprotection": {
+              "type": "boolean",
+              "title": "Write protection for device 2",
+              "description": "When write protection is enabled, the FMC disables write operations to the memory region.",
+              "default": false,
+              "actions": [
+                {
+                  "type": "include",
+                  "condition": "$basic.memory_config.device_selection == 2 || $basic.memory_config.device_selection == 3"
+                }
+              ]
+            }
+          }
+        },
+        "security_privilege": {
+          "title": "Security and privilege",
+          "#comment": "Use for instance for FMC SDRAM",
+          "description": "Manage security and privileged access levels attributes.",
+          "type": "object",
+          "actions": [
+            {
+              "type": "exclude",
+              "condition": "($get('swproject.getCurrentEngine') === null) || ($get('swproject.getCurrentEngine').secure === 'TZ-disabled')"
+            },
+            {
+              "type": "set",
+              "condition": "$get('swproject.getCurrentEngine').secure === 'Non-secure'",
+              "attributes": {
+                "title": "Privileged",
+                "description": "Manage privileged access levels attributes."
+              }
+            }
+          ],
+          "properties": {
+            "security": {
+              "type": "string",
+              "title": "Security attribute",
+              "description": "Set the security attribute of the securable peripheral.",
+              "actions": [
+                {
+                  "type": "include",
+                  "condition": "($get('swproject.getCurrentEngine').secure === 'Secure') || ($get('swproject.getCurrentEngine').secure === 'Secure-only')"
+                },
+                {
+                  "type": "set",
+                  "attributes": {
+                    "const": "SEC"
+                  },
+                  "condition": "$get('peripheral.isBound', $resource.id)"
+                },
+                {
+                  "type": "set",
+                  "attributes": {
+                    "const": "NSEC"
+                  },
+                  "condition": "!$get('peripheral.isBound', $resource.id)"
+                },
+                {
+                  "type": "disable",
+                  "condition": "$get('peripheral.isBound', $resource.id)",
+                  "message": "The security attribute of the peripheral is automatically set to secure when the peripheral is bound to a secure resource and to non-secure when it is not. Manual configuration is not allowed."
+                }
+              ],
+              "synchronize": true,
+              "synchronizeOn": {
+                "component": "ST-HAL",
+                "path": "rif-risc-peripheral-sec-attr",
+                "custom": "$resource.parent"
+              },
+              "oneOf": [
+                {
+                  "title": "Secure",
+                  "const": "SEC"
+                },
+                {
+                  "title": "Non-secure",
+                  "const": "NSEC"
+                }
+              ],
+              "default": "NSEC"
+            },
+            "privilege": {
+              "type": "string",
+              "title": "Privilege attribute",
+              "description": "Set the privilege attribute of a securable RISC peripheral.",
+              "synchronize": true,
+              "synchronizeOn": {
+                "component": "ST-HAL",
+                "path": "rif-risc-peripheral-priv-attr",
+                "custom": "$resource.parent"
+              },
+              "oneOf": [
+                {
+                  "title": "Privileged",
+                  "const": "PRIV"
+                },
+                {
+                  "title": "Unprivileged",
+                  "const": "NPRIV"
+                }
+              ],
+              "default": "PRIV"
+            },
+            "lock": {
+              "type": "boolean",
+              "title": "Lock",
+              "description": "Optional. Lock security and privilege attributes to prevent changes.",
+              "actions": [
+                {
+                  "type": "include",
+                  "condition": "($get('swproject.getCurrentEngine').secure === 'Secure') || ($get('swproject.getCurrentEngine').secure === 'Secure-only')"
+                }
+              ],
+              "synchronize": true,
+              "synchronizeOn": {
+                "component": "ST-HAL",
+                "path": "rif-risc-peripheral-lock-attr",
+                "custom": "$resource.parent"
+              },
+              "default": false
+            },
+            "illegal_access": {
+              "type": "boolean",
+              "title": "Illegal access interrupt",
+              "actions": [
+                {
+                  "type": "include",
+                  "condition": "($get('swproject.getCurrentEngine').secure === 'Secure') || ($get('swproject.getCurrentEngine').secure === 'Secure-only')"
+                },
+                {
+                  "type": "disable",
+                  "condition": "($get('swproject.getCurrentEngine').secure === 'Secure-only')",
+                  "message": "Secure-only mode: Illegal access interrupt is forced to disabled."
+                }
+              ],
+              "synchronize": true,
+              "synchronizeOn": {
+                "component": "ST-HAL",
+                "path": "rif-iac-peripheral",
+                "custom": "$resource.parent"
+              },
+              "default": false
+            }
+          }
+        },
+        "system": {
+          "type": "object",
+          "title": "System",
+          "properties": {
+            "gpio": {
+              "type": "object",
+              "title": "GPIO",
+              "properties": {
+                "gpio_a0": {
+                  "title": "FMC_A0",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A0')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A0",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a1": {
+                  "title": "FMC_A1",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A1')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A1",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a2": {
+                  "title": "FMC_A2",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A2')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A2",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a3": {
+                  "title": "FMC_A3",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A3')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A3",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a4": {
+                  "title": "FMC_A4",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A4')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A4",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a5": {
+                  "title": "FMC_A5",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A5')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A5",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a6": {
+                  "title": "FMC_A6",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A6')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A6",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a7": {
+                  "title": "FMC_A7",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A7')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A7",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a8": {
+                  "title": "FMC_A8",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A8')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A8",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a9": {
+                  "title": "FMC_A9",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A9')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A9",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a10": {
+                  "title": "FMC_A10",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A10')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A10",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a11": {
+                  "title": "FMC_A11",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A11')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A11",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_a12": {
+                  "title": "FMC_A12",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'A12')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "A12",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_ba0": {
+                  "title": "FMC_BA0",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'BA0')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "BA0",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_ba1": {
+                  "title": "FMC_BA1",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'BA1')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "BA1",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_sdclk": {
+                  "title": "FMC_SDCLK",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'SDCLK')"
+                    }
+                  ],
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "needs": [
+                    {
+                      "selector": "SDCLK",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d0": {
+                  "title": "FMC_D0",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D0')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D0",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d1": {
+                  "title": "FMC_D1",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D1')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D1",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d2": {
+                  "title": "FMC_D2",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D2')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D2",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d3": {
+                  "title": "FMC_D3",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D3')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D3",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d4": {
+                  "title": "FMC_D4",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D4')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D4",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d5": {
+                  "title": "FMC_D5",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D5')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D5",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d6": {
+                  "title": "FMC_D6",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D6')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D6",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d7": {
+                  "title": "FMC_D7",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D7')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D7",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d8": {
+                  "title": "FMC_D8",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D8')) && (($basic.memory_config.device1.memory_bus_width >= 16) || ($basic.memory_config.device2.memory_bus_width >= 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D8",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d9": {
+                  "title": "FMC_D9",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D9')) && (($basic.memory_config.device1.memory_bus_width >= 16) || ($basic.memory_config.device2.memory_bus_width >= 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D9",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d10": {
+                  "title": "FMC_D10",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D10')) && (($basic.memory_config.device1.memory_bus_width >= 16) || ($basic.memory_config.device2.memory_bus_width >= 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D10",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d11": {
+                  "title": "FMC_D11",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D11')) && (($basic.memory_config.device1.memory_bus_width >= 16) || ($basic.memory_config.device2.memory_bus_width >= 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D11",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d12": {
+                  "title": "FMC_D12",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D12')) && (($basic.memory_config.device1.memory_bus_width >= 16) || ($basic.memory_config.device2.memory_bus_width >= 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D12",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d13": {
+                  "title": "FMC_D13",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D13')) && (($basic.memory_config.device1.memory_bus_width >= 16) || ($basic.memory_config.device2.memory_bus_width >= 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D13",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d14": {
+                  "title": "FMC_D14",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D14')) && (($basic.memory_config.device1.memory_bus_width >= 16) || ($basic.memory_config.device2.memory_bus_width >= 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D14",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d15": {
+                  "title": "FMC_D15",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D15')) && (($basic.memory_config.device1.memory_bus_width >= 16) || ($basic.memory_config.device2.memory_bus_width >= 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D15",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d16": {
+                  "title": "FMC_D16",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D16')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D16",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d17": {
+                  "title": "FMC_D17",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D17')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D17",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d18": {
+                  "title": "FMC_D18",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D18')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D18",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d19": {
+                  "title": "FMC_D19",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D19')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D19",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d20": {
+                  "title": "FMC_D20",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D20')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D20",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d21": {
+                  "title": "FMC_D21",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D21')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D21",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d22": {
+                  "title": "FMC_D22",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D22')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D22",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d23": {
+                  "title": "FMC_D23",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D23')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D23",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d24": {
+                  "title": "FMC_D24",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D24')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D24",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d25": {
+                  "title": "FMC_D25",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D25')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D25",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d26": {
+                  "title": "FMC_D26",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D26')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D26",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d27": {
+                  "title": "FMC_D27",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D27')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D27",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d28": {
+                  "title": "FMC_D28",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D28')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D28",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d29": {
+                  "title": "FMC_D29",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D29')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D29",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d30": {
+                  "title": "FMC_D30",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D30')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D30",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_d31": {
+                  "title": "FMC_D31",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'D31')) && (($basic.memory_config.device1.memory_bus_width > 16) || ($basic.memory_config.device2.memory_bus_width > 16))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "D31",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_nbl0": {
+                  "title": "FMC_NBL0",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'NBL0')) && (((($basic.memory_config.device1.memory_bus_width == 16 && $basic.memory_config.device1.byte_lane_16_enable) || ($basic.memory_config.device1.memory_bus_width == 32 && $basic.memory_config.device1.byte_lane_32_enable))) || ((($basic.memory_config.device2.memory_bus_width == 16 && $basic.memory_config.device2.byte_lane_16_enable) || ($basic.memory_config.device2.memory_bus_width == 32 && $basic.memory_config.device2.byte_lane_32_enable))))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "NBL0",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_nbl1": {
+                  "title": "FMC_NBL1",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'NBL1')) && (((($basic.memory_config.device1.memory_bus_width == 16 && $basic.memory_config.device1.byte_lane_16_enable) || ($basic.memory_config.device1.memory_bus_width == 32 && $basic.memory_config.device1.byte_lane_32_enable))) || ((($basic.memory_config.device2.memory_bus_width == 16 && $basic.memory_config.device2.byte_lane_16_enable) || ($basic.memory_config.device2.memory_bus_width == 32 && $basic.memory_config.device2.byte_lane_32_enable))))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "NBL1",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_nbl2": {
+                  "title": "FMC_NBL2",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'NBL2')) && (($basic.memory_config.device1.memory_bus_width == 32 && $basic.memory_config.device1.byte_lane_32_enable) || ($basic.memory_config.device2.memory_bus_width == 32 && $basic.memory_config.device2.byte_lane_32_enable))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "NBL2",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_nbl3": {
+                  "title": "FMC_NBL3",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'NBL3')) && (($basic.memory_config.device1.memory_bus_width == 32 && $basic.memory_config.device1.byte_lane_32_enable) || ($basic.memory_config.device2.memory_bus_width == 32 && $basic.memory_config.device2.byte_lane_32_enable))"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "NBL3",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_sdnwe": {
+                  "title": "FMC_SDNWE",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'SDNWE')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "SDNWE",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_sdne0": {
+                  "title": "FMC_SDNE0",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'SDNE0')) && ($basic.memory_config.device_selection == 1 || $basic.memory_config.device_selection == 3)"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "SDNE0",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_sdcke0": {
+                  "title": "FMC_SDCKE0",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'SDCKE0')) && ($basic.memory_config.device_selection == 1 || $basic.memory_config.device_selection == 3)"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "SDCKE0",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_sdne1": {
+                  "title": "FMC_SDNE1",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'SDNE1')) && ($basic.memory_config.device_selection == 2 || $basic.memory_config.device_selection == 3)"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "SDNE1",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_sdcke1": {
+                  "title": "FMC_SDCKE1",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'SDCKE1')) && ($basic.memory_config.device_selection == 2 || $basic.memory_config.device_selection == 3)"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "SDCKE1",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_nras": {
+                  "title": "FMC_NRAS",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'NRAS')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "NRAS",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "gpio_ncas": {
+                  "title": "FMC_NCAS",
+                  "type": "object",
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.parentDescription.name",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.parentDescription.name, 'NCAS')"
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "NCAS",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        },
+                        "output_type": {
+                          "const": "PUSHPULL"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "nvic": {
+              "type": "object",
+              "title": "NVIC",
+              "properties": {
+                "enable_interruption": {
+                  "title": "Global interrupt",
+                  "type": "boolean",
+                  "default": false,
+                  "actions": [
+                    {
+                      "type": "set",
+                      "condition": "$additional.refresh_error_it",
+                      "attributes": {
+                        "const": true,
+                        "description": "The 'Interrupt' must be configured whenever any interrupt source is enabled"
+                      }
+                    }
+                  ]
+                },
+                "irq_handler_generation": {
+                  "type": "boolean",
+                  "title": "IRQ handler generation",
+                  "default": true,
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($system.nvic.enable_interruption) && ($info.layer === 'HAL')"
+                    }
+                  ]
+                },
+                "nvic_config": {
+                  "title": "IRQ line priority",
+                  "type": "object",
+                  "objectType": "need.interrupt.lines",
+                  "owner": "$resource.parentDescription.name",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "needs": [
+                    {
+                      "selector": "*"
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "$system.nvic.enable_interruption"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

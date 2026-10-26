@@ -1,0 +1,155 @@
+{{!--
+  ******************************************************************************
+  * @file           : mx_fmc_template.h.hbs
+  * @brief          : Header for mx_fmc_template.c.cbs file.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  ~--}}
+{{#helper_common_beautifier}}
+{{assign "codegen_ctxt" (helper_common_get_codegen_context 'FMC' (get '') @root.EnvVarAPI @root.peripheralsResourceManagerAPI @root.SWConfigurationAPI)~}}
+{{assign 'file_name' 'FMC'~}}
+{{assign 'parent_resource' (get 'peripheral')~}}
+{{assign 'instances' (get 'context')~}}
+/**
+  ******************************************************************************
+  * @file           : mx_{{lowercase @root.file_name}}.h
+  * @brief          : Header for mx_{{lowercase @root.file_name}}.c file.
+{{> LICENSE}}
+
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef MX_{{@root.file_name}}_H
+#define MX_{{@root.file_name}}_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+/* Includes ------------------------------------------------------------------*/
+#include "stm32_hal.h"
+#include "mx_def.h"
+
+/* Exported types ------------------------------------------------------------*/
+/* Exported constants --------------------------------------------------------*/
+{{!-- No LL driver --}}
+{{assign 'current_layer' 'HAL'}}
+{{#each @root.instances}}
+{{helper_gpio_generate_aliases @root.pinoutAPI @root.parent_resource @root.current_layer~}}
+{{helper_dma_generate_channel_aliases @root.parent_resource @root.DmaAPI @root.SWConfigurationAPI~}}
+{{/each}}
+
+/* Exported macros -----------------------------------------------------------*/
+/* Exported variables --------------------------------------------------------*/
+/* Exported functions ------------------------------------------------------- */
+
+/******************************************************************************/
+/* Exported functions for {{@root.parent_resource}} in HAL layer */
+/******************************************************************************/
+{{#each @root.instances~}}
+  {{~assign 'sw_instance_ids' (@root.peripheralsResourceManagerAPI.getSoftwareInstancesBoundToPeripheral this)~}}
+  {{~assign 'current_resource' (replace (replace this @root.parent_resource '') '.' '')~}}
+
+  {{#each @root.sw_instance_ids}}
+    {{~assign 'fmc_cxt' (@root.SWConfigurationAPI.getSwInstanceConfiguration this)~}}
+    {{~assign 'getCurrentEngine' (@root.SwComposerAPI.getCurrentEngine)~}}
+
+    {{#if (eq @root.fmc_cxt.info.function_type undefined)}}
+      {{~assign 'function_type' @root.current_resource~}}
+    {{else}}
+      {{~assign 'function_type' @root.fmc_cxt.info.function_type~}}
+    {{/if}}
+
+    {{#if (or (eq @root.function_type 'SRAM') (eq @root.function_type 'NOR'))}}
+      {{~assign 'sub_fct_name' (concat @root.current_resource '_' @root.function_type)}}
+      {{~assign 'fct_name' (helper_common_get_generated_function_name @root.parent_resource 'HAL' undefined @root.sub_fct_name)~}}
+    {{else}}
+      {{~assign 'fct_name' (helper_common_get_generated_function_name @root.parent_resource 'HAL' undefined @root.current_resource)~}}
+    {{/if}}
+
+{{#with @root.fmc_cxt}}
+/**
+  * @brief {{@root.fct_name}}_init function
+  * This function configures the hardware resources used in this example
+  * @retval pointer to handle or NULL in case of failure
+  */
+hal_{{lowercase @root.function_type}}_handle_t *{{@root.fct_name}}_init(void);
+
+/**
+  * @brief  De-initialize FMC {{@root.function_type}} instance and return it.
+  */
+void {{@root.fct_name}}_deinit(void);
+
+/**
+  * @brief  Get the FMC {{@root.function_type}} object.
+  * @retval Pointer on the FMC {{@root.function_type}} Handle
+  */
+hal_{{lowercase @root.function_type}}_handle_t *{{@root.fct_name}}_gethandle(void);
+
+{{> GPIO_HAL fct='gpio_exti_gethandle' resource=@root.parent_resource type='prototype'}}
+
+{{#with security_privilege}}
+{{#if (eq @root.getCurrentEngine.secure 'Non-secure')}}
+/**
+  * @brief Peripheral privilege configuration function
+  * @retval system_status_t
+  */
+system_status_t {{@root.fct_name}}_config_privilege(void);
+{{else}}
+/**
+  * @brief Peripheral security and privilege configuration function
+  * @retval system_status_t
+  */
+system_status_t {{@root.fct_name}}_config_security_privilege(void);
+{{/if}}
+{{/with}}
+
+{{> GPIO_HAL fct='init_resource_independently' resource=@root.parent_resource init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='prototype'}}
+
+{{#with system}}
+{{#with dma}}
+{{#if dma_program}}
+{{> DMA_HAL fct='init_independently' needs=dma_program_config.needs resource=@root.parent_resource init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='prototype'}}
+{{/if}}
+{{#if dma_read}}
+{{> DMA_HAL fct='init_independently' needs=dma_read_config.needs resource=@root.parent_resource init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='prototype'}}
+{{/if}}
+{{#if dma_ecc}}
+{{> DMA_HAL fct='init_independently' needs=dma_ecc_config.needs resource=@root.parent_resource init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='prototype'}}
+{{/if}}
+{{/with}}
+{{/with}}
+
+{{/with}}
+  {{/each}}
+{{/each}}
+
+{{#each @root.complex_irq_info_list}}
+{{#if generate_handler}}
+/******************************************************************************/
+/*                     {{description}}                    */
+/******************************************************************************/
+void {{line}}_IRQHandler(void);
+{{else}}
+/******************************************************************************/
+/*    {{description}} is managed directly in user code.   */
+/******************************************************************************/
+/* void {{line}}_IRQHandler(void); */
+{{/if}}
+{{/each}}
+
+{{> CORTEX fct='generate_irqhandler' type='definition' component='FMC'}}
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+
+#endif /* MX_{{@root.file_name}}_H */
+{{/helper_common_beautifier}}

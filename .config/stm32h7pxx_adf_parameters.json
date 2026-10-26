@@ -1,0 +1,4572 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "version": "0.0.1",
+  "componentid": "::Device:STM32CubeMX2 Config:ADF",
+  "grammarVersion": "3.7",
+  "type": "object",
+  "functions": [
+    {
+      "path": ".config/template/helpers/adf_helpers.js",
+      "accessor": "common"
+    }
+  ],
+  "properties": {
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "info": {
+          "type": "object",
+          "title": "General information",
+          "properties": {
+            "labels": {
+              "type": "array",
+              "title": "Add a label",
+              "description": "Labels allow to create aliases inside mx_hal_def.h file like '<label>_init', '<label>_deinit' and '<label>_gethandle'. These aliases can be used on application side.",
+              "items": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 32,
+                "unique": "project",
+                "default": "",
+                "actions": [
+                  {
+                    "type": "error",
+                    "condition": "!/^[A-Za-z_][A-Za-z0-9_]*$/.test($value)",
+                    "message": "Name must be a valid C identifier: start with a letter or underscore, and contain only letters, digits, or underscores."
+                  }
+                ]
+              }
+            },
+            "layer": {
+              "type": "string",
+              "title": "Software layer",
+              "oneOf": [
+                {
+                  "title": "HAL",
+                  "const": "HAL"
+                }
+              ],
+              "variables": [
+                {
+                  "on": "update-value",
+                  "name": "HAL_ADF_PROJECT_USE_HAL",
+                  "condition": "$value === 'HAL'",
+                  "semaphore": true
+                }
+              ],
+              "default": "HAL"
+            },
+            "init_type": {
+              "type": "string",
+              "title": "Resource initialization code generation",
+              "description": "Pick whether the initialization code should be generated and automatically called at startup.",
+              "oneOf": [
+                {
+                  "title": "Callable",
+                  "const": "called",
+                  "description": "Initialization code is generated and called in peripheral initialization."
+                },
+                {
+                  "title": "Generated",
+                  "const": "enabled",
+                  "description": "Initialization code is generated but not called in peripheral initialization."
+                },
+                {
+                  "title": "Not generated",
+                  "const": "disabled",
+                  "description": "Initialization code is not generated."
+                }
+              ],
+              "default": "called"
+            }
+          }
+        },
+        "basic": {
+          "type": "object",
+          "title": "Main features",
+          "properties": {
+            "processing_clock_divider": {
+              "type": "integer",
+              "title": "Processing clock divider",
+              "description": "Divider applied on peripheral kernel clock for processing clock.",
+              "minimum": 1,
+              "maximum": 128,
+              "default": 1,
+              "display_format": [
+                "hex",
+                "dec"
+              ]
+            },
+            "processing_clock_value": {
+              "type": "integer",
+              "title": "Processing clock value",
+              "unit": "Hz",
+              "readOnly": true,
+              "display_format": [
+                "dec"
+              ],
+              "actions": [
+                {
+                  "type": "set",
+                  "computed": {
+                    "const": "$common.helper_adf_clock_divider($get('clock.frequency',$resource.id), $basic.processing_clock_divider)"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "additional": {
+          "type": "object",
+          "title": "Advanced features",
+          "actions": [
+            {
+              "type": "exclude",
+              "condition": "!$get('pinout.peripheralCanBeMapped', $resource.id, 'CCK0') && !$get('pinout.peripheralCanBeMapped', $resource.id, 'CCK1')"
+            }
+          ],
+          "properties": {
+            "common_output_clocks_configuration": {
+              "type": "object",
+              "title": "Common output clocks",
+              "properties": {
+                "use_common_clock_0": {
+                  "type": "boolean",
+                  "title": "Use common clock 0 signal as output",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.id, 'CCK0')"
+                    }
+                  ],
+                  "default": false
+                },
+                "use_common_clock_1": {
+                  "type": "boolean",
+                  "title": "Use common clock 1 signal as output",
+                  "actions": [
+                    {
+                      "type": "exclude",
+                      "condition": "!$get('pinout.peripheralCanBeMapped', $resource.id, 'CCK1')"
+                    }
+                  ],
+                  "default": false
+                },
+                "output_clock_divider": {
+                  "type": "integer",
+                  "title": "Output clock divider",
+                  "description": "Divider applied on processing clock for output clock.",
+                  "actions": [
+                    {
+                      "type": "enable",
+                      "condition": "$additional.common_output_clocks_configuration.use_common_clock_0 || $additional.common_output_clocks_configuration.use_common_clock_1",
+                      "message": "Available when at least one common clock is used as output."
+                    }
+                  ],
+                  "minimum": 1,
+                  "maximum": 16,
+                  "default": 1,
+                  "display_format": [
+                    "hex",
+                    "dec"
+                  ]
+                },
+                "output_clock_value": {
+                  "type": "integer",
+                  "title": "Output clock value",
+                  "unit": "Hz",
+                  "readOnly": true,
+                  "display_format": [
+                    "dec"
+                  ],
+                  "actions": [
+                    {
+                      "type": "enable",
+                      "condition": "$additional.common_output_clocks_configuration.use_common_clock_0 || $additional.common_output_clocks_configuration.use_common_clock_1",
+                      "message": "Available when at least one common clock is used as output."
+                    },
+                    {
+                      "type": "set",
+                      "computed": {
+                        "const": "$common.helper_adf_clock_divider($basic.processing_clock_value, $additional.common_output_clocks_configuration.output_clock_divider)"
+                      }
+                    }
+                  ]
+                },
+                "use_output_clock_trigger": {
+                  "type": "boolean",
+                  "title": "Use output clock trigger",
+                  "actions": [
+                    {
+                      "type": "enable",
+                      "condition": "$additional.common_output_clocks_configuration.use_common_clock_0 || $additional.common_output_clocks_configuration.use_common_clock_1",
+                      "message": "Available when at least one common clock is used as output."
+                    }
+                  ],
+                  "default": false
+                },
+                "use_internal_trigger_for_output_clock": {
+                  "type": "boolean",
+                  "title": "Use internal trigger as output clock trigger",
+                  "description": "ADF1_TRGO signal.",
+                  "actions": [
+                    {
+                      "type": "enable",
+                      "condition": "$additional.common_output_clocks_configuration.use_output_clock_trigger",
+                      "message": "Available when output clock trigger is used."
+                    }
+                  ],
+                  "default": false
+                },
+                "output_clock_trigger_source": {
+                  "type": "object",
+                  "title": "External output clock trigger source",
+                  "actions": [
+                    {
+                      "type": "enable",
+                      "condition": "$additional.common_output_clocks_configuration.use_output_clock_trigger && !$additional.common_output_clocks_configuration.use_internal_trigger_for_output_clock",
+                      "message": "Available when output clock trigger is used and internal trigger is not used."
+                    },
+                    {
+                      "type": "info",
+                      "condition": "true",
+                      "message": "The selected interconnect must be configured manually"
+                    }
+                  ],
+                  "objectType": "query",
+                  "query": {
+                    "entity": "peripheral.interconnect.input trigger",
+                    "parent": "$resource.id",
+                    "title": "{{source.toUpperCase()}}"
+                  }
+                },
+                "output_clock_trigger_edge": {
+                  "type": "string",
+                  "title": "Output clock trigger edge",
+                  "actions": [
+                    {
+                      "type": "enable",
+                      "condition": "$additional.common_output_clocks_configuration.use_output_clock_trigger",
+                      "message": "Available when output clock trigger is used."
+                    }
+                  ],
+                  "oneOf": [
+                    {
+                      "title": "Rising",
+                      "const": "RISING_EDGE"
+                    },
+                    {
+                      "title": "Falling",
+                      "const": "FALLING_EDGE"
+                    }
+                  ],
+                  "default": "RISING_EDGE"
+                }
+              }
+            }
+          }
+        },
+        "serial_interface": {
+          "type": "array",
+          "title": "Serial interface(s)",
+          "source": "Array.from({ length: $resource.features.NBF}, (_, i) => ({ id: (i), name: `Serial interface ${i}`}))",
+          "itemId": "id",
+          "itemTitle": "name",
+          "itemVar": "serial_interface_sub_block",
+          "rendering": "channel-tabs",
+          "items": {
+            "type": "object",
+            "actions": [
+              {
+                "type": "exclude",
+                "condition": "!$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI' + $item._foreignKey.toString())"
+              }
+            ],
+            "properties": {
+              "use_channel": {
+                "type": "boolean",
+                "title": "Use serial interface",
+                "default": false
+              },
+              "labels": {
+                "type": "array",
+                "title": "Add a label",
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "$item.use_channel",
+                    "message": "Available when the serial interface is used."
+                  }
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 32,
+                  "default": "",
+                  "actions": [
+                    {
+                      "type": "error",
+                      "condition": "!/^[A-Za-z_][A-Za-z0-9_]*$/.test($value)",
+                      "message": "Name must be a valid C identifier: start with a letter or underscore, and contain only letters, digits, or underscores."
+                    }
+                  ]
+                }
+              },
+              "sitf_mode": {
+                "type": "string",
+                "title": "Mode",
+                "description": "Serial interface mode.",
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "$item.use_channel",
+                    "message": "Available when the serial interface is used."
+                  }
+                ],
+                "oneOf": [
+                  {
+                    "title": "Low frequency master SPI mode",
+                    "const": "LF_MASTER_SPI"
+                  },
+                  {
+                    "title": "Normal SPI mode",
+                    "const": "NORMAL_SPI"
+                  },
+                  {
+                    "title": "Manchester mode, falling edge",
+                    "const": "MANCHESTER_FALLING"
+                  },
+                  {
+                    "title": "Manchester mode, rising edge",
+                    "const": "MANCHESTER_RISING"
+                  }
+                ],
+                "default": "NORMAL_SPI"
+              },
+              "clock_source": {
+                "type": "string",
+                "title": "Clock source",
+                "description": "Serial interface clock source.",
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "$item.use_channel",
+                    "message": "Available when the serial interface is used."
+                  },
+                  {
+                    "type": "warning",
+                    "condition": "$item.use_channel && ((($value === 'CCK0') && !$additional.common_output_clocks_configuration.use_common_clock_0) || (($value === 'CCK1') && !$additional.common_output_clocks_configuration.use_common_clock_1))",
+                    "message": "Common clock must be used as output on global additional features configuration"
+                  },
+                  {
+                    "type": "set",
+                    "condition": "$get('pinout.peripheralCanBeMapped', $resource.id, 'CCK0')",
+                    "attributes": {
+                      "default": "CCK0"
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "!$get('pinout.peripheralCanBeMapped', $resource.id, 'CCK0')",
+                    "attributes": {
+                      "default": "CCK1"
+                    }
+                  }
+                ],
+                "oneOf": [
+                  {
+                    "title": "Common clock 0",
+                    "const": "CCK0",
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "!$get('pinout.peripheralCanBeMapped', $resource.id, 'CCK0')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Common clock 1",
+                    "const": "CCK1",
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "!$get('pinout.peripheralCanBeMapped', $resource.id, 'CCK1')"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "sitf_threshold": {
+                "type": "integer",
+                "title": "Threshold",
+                "description": "Not used in this mode.",
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "($item.use_channel) && (($item.sitf_mode === 'MANCHESTER_FALLING') || ($item.sitf_mode === 'MANCHESTER_RISING')  || ($item.sitf_mode === 'NORMAL_SPI'))",
+                    "message": "Available when the serial interface is used and mode is normal SPI or manchester."
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($item.sitf_mode === 'NORMAL_SPI')",
+                    "attributes": {
+                      "description": "Timeout value for the clock absence detection."
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($item.sitf_mode === 'MANCHESTER_RISING')  || ($item.sitf_mode === 'MANCHESTER_FALLING')",
+                    "attributes": {
+                      "description": "Expected symbol threshold level."
+                    }
+                  }
+                ],
+                "minimum": 4,
+                "maximum": 31,
+                "default": 4,
+                "display_format": [
+                  "hex",
+                  "dec"
+                ]
+              }
+            }
+          }
+        },
+        "bitstream_matrix": {
+          "type": "array",
+          "title": "Bitstream matrix",
+          "source": "Array.from({ length: $resource.features.NBF}, (_, i) => ({ id: (i), name: `Bitstream matrix ${i}` }))",
+          "itemId": "id",
+          "itemTitle": "name",
+          "itemVar": "bitstream_matrix_sub_block",
+          "rendering": "channel-tabs",
+          "items": {
+            "type": "object",
+            "properties": {
+              "use_channel": {
+                "type": "boolean",
+                "title": "Use bitstream matrix",
+                "default": false
+              },
+              "labels": {
+                "type": "array",
+                "title": "Add a label",
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "$item.use_channel",
+                    "message": "Available when the bitstream matrix is used."
+                  }
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 32,
+                  "default": "",
+                  "actions": [
+                    {
+                      "type": "error",
+                      "condition": "!/^[A-Za-z_][A-Za-z0-9_]*$/.test($value)",
+                      "message": "Name must be a valid C identifier: start with a letter or underscore, and contain only letters, digits, or underscores."
+                    }
+                  ]
+                }
+              },
+              "bitstream_source": {
+                "title": "Bitstream source",
+                "type": "integer",
+                "default": 0,
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "$item.use_channel",
+                    "message": "Available when the bitstream matrix is used."
+                  },
+                  {
+                    "type": "warning",
+                    "condition": "$item.use_channel && ($common.helper_adf_check_sub_block_usage($serial_interface,$value) === false)",
+                    "message": "Serial interface must be used and configured."
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 1) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI0')",
+                    "attributes": {
+                      "default": 0
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 2) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI1')",
+                    "attributes": {
+                      "default": 1
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 3) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI2')",
+                    "attributes": {
+                      "default": 2
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 4) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI3')",
+                    "attributes": {
+                      "default": 3
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 5) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI4')",
+                    "attributes": {
+                      "default": 4
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 6) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI5')",
+                    "attributes": {
+                      "default": 5
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 7) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI6')",
+                    "attributes": {
+                      "default": 6
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 8) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI7')",
+                    "attributes": {
+                      "default": 7
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 9) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI8')",
+                    "attributes": {
+                      "default": 8
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 10) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI9')",
+                    "attributes": {
+                      "default": 9
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 11) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI10')",
+                    "attributes": {
+                      "default": 10
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 12) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI11')",
+                    "attributes": {
+                      "default": 11
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 13) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI12')",
+                    "attributes": {
+                      "default": 12
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 14) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI13')",
+                    "attributes": {
+                      "default": 13
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 15) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI14')",
+                    "attributes": {
+                      "default": 14
+                    }
+                  },
+                  {
+                    "type": "set",
+                    "condition": "($resource.features.NBF >= 16) && $get('pinout.peripheralCanBeMapped', $resource.id, 'SDI15')",
+                    "attributes": {
+                      "default": 15
+                    }
+                  }
+                ],
+                "oneOf": [
+                  {
+                    "title": "Serial interface 0",
+                    "const": 0,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 1) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI0')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 1",
+                    "const": 1,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 2) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI1')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 2",
+                    "const": 2,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 3) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI2')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 3",
+                    "const": 3,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 4) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI3')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 4",
+                    "const": 4,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 5) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI4')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 5",
+                    "const": 5,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 6) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI5')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 6",
+                    "const": 6,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 7) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI6')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 7",
+                    "const": 7,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 8) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI7')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 8",
+                    "const": 8,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 9) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI8')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 9",
+                    "const": 9,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 10) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI9')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 10",
+                    "const": 10,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 11) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI10')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 11",
+                    "const": 11,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 12) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI11')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 12",
+                    "const": 12,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 13) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI12')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 13",
+                    "const": 13,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 14) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI13')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 14",
+                    "const": 14,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 15) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI14')"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Serial interface 15",
+                    "const": 15,
+                    "actions": [
+                      {
+                        "type": "exclude",
+                        "condition": "($resource.features.NBF < 16) || !$get('pinout.peripheralCanBeMapped', $resource.id, 'SDI15')"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "bitstream_edge": {
+                "type": "string",
+                "title": "Bitstream edge",
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "$item.use_channel",
+                    "message": "Available when the bitstream matrix is used."
+                  }
+                ],
+                "oneOf": [
+                  {
+                    "title": "Rising",
+                    "const": "RISING"
+                  },
+                  {
+                    "title": "Falling",
+                    "const": "FALLING"
+                  }
+                ],
+                "default": "RISING"
+              }
+            }
+          }
+        },
+        "digital_filter": {
+          "type": "array",
+          "title": "Digital filter(s)",
+          "source": "Array.from({ length: $resource.features.NBF}, (_, i) => ({ id: (i), name: `Digital filter ${i}` }))",
+          "itemId": "id",
+          "itemTitle": "name",
+          "itemVar": "digital_filter_sub_block",
+          "rendering": "channel-tabs",
+          "items": {
+            "type": "object",
+            "properties": {
+              "use_channel": {
+                "type": "boolean",
+                "title": "Use digital filter",
+                "default": false
+              },
+              "labels": {
+                "type": "array",
+                "title": "Add a label",
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "$item.use_channel",
+                    "message": "Available when the digital filter is used."
+                  }
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 32,
+                  "default": "",
+                  "actions": [
+                    {
+                      "type": "error",
+                      "condition": "!/^[A-Za-z_][A-Za-z0-9_]*$/.test($value)",
+                      "message": "Name must be a valid C identifier: start with a letter or underscore, and contain only letters, digits, or underscores."
+                    }
+                  ]
+                }
+              },
+              "dflt_main": {
+                "type": "object",
+                "title": "Main digital filter features",
+                "properties": {
+                  "dflt_data_source_bsmx": {
+                    "type": "boolean",
+                    "title": "Use bitstream matrix as data source",
+                    "default": true,
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel",
+                        "message": "Available when the digital filter is used."
+                      },
+                      {
+                        "type": "warning",
+                        "condition": "$item.use_channel && $item.dflt_main.dflt_data_source_bsmx && !$bitstream_matrix[$item._foreignKey].use_channel",
+                        "message": "Bitstream matrix of same index must be used and configured."
+                      }
+                    ]
+                  },
+                  "dflt_data_source_adc": {
+                    "type": "object",
+                    "title": "Use ADC interface as data source",
+                    "objectType": "query",
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel && !$item.dflt_main.dflt_data_source_bsmx",
+                        "message": "Available when the digital filter is used and bitstream matrix is not used as data source."
+                      },
+                      {
+                        "type": "info",
+                        "condition": "true",
+                        "message": "The selected interconnect must be configured manually."
+                      }
+                    ],
+                    "query": {
+                      "entity": "peripheral.interconnect.input parallel link",
+                      "parent": "$resource.id",
+                      "title": "{{source.toUpperCase().replace('_DATA', '')}}"
+                    }
+                  },
+                  "dflt_cic_mode": {
+                    "type": "string",
+                    "title": "CIC mode",
+                    "description": "Cascaded integrator-comb (CIC).",
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel",
+                        "message": "Available when the digital filter is used."
+                      }
+                    ],
+                    "oneOf": [
+                      {
+                        "title": "One filter in Sinc4 order",
+                        "const": "ONE_FILTER_SINC4"
+                      },
+                      {
+                        "title": "One filter in Sinc5 order",
+                        "const": "ONE_FILTER_SINC5"
+                      }
+                    ],
+                    "default": "ONE_FILTER_SINC4"
+                  },
+                  "dflt_decimation_ratio": {
+                    "type": "integer",
+                    "title": "Decimation ratio",
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel",
+                        "message": "Available when the digital filter is used."
+                      }
+                    ],
+                    "minimum": 2,
+                    "maximum": 512,
+                    "default": 2,
+                    "display_format": [
+                      "hex",
+                      "dec"
+                    ]
+                  },
+                  "dflt_gain_step": {
+                    "type": "integer",
+                    "title": "Gain",
+                    "description": "In step of around 3 dB, from -16 (-48 dB) to 24 (72 dB).",
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel",
+                        "message": "Available when the digital filter is used."
+                      }
+                    ],
+                    "minimum": -16,
+                    "maximum": 24,
+                    "default": 0,
+                    "display_format": [
+                      "dec"
+                    ]
+                  },
+                  "dflt_gain_db": {
+                    "type": "integer",
+                    "title": "Gain",
+                    "unit": "dB",
+                    "readOnly": true,
+                    "display_format": [
+                      "dec"
+                    ],
+                    "actions": [
+                      {
+                        "type": "set",
+                        "computed": {
+                          "const": "$common.helper_adf_compute_gain_in_db($item.dflt_main.dflt_gain_step)"
+                        }
+                      }
+                    ]
+                  },
+                  "dflt_acquisition_mode": {
+                    "type": "string",
+                    "title": "Acquisition mode",
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel",
+                        "message": "Available when the digital filter is used."
+                      }
+                    ],
+                    "oneOf": [
+                      {
+                        "title": "Asynchronous, continuous",
+                        "const": "ASYNC_CONT"
+                      },
+                      {
+                        "title": "Asynchronous, single-shot",
+                        "const": "ASYNC_SINGLE"
+                      },
+                      {
+                        "title": "Synchronous, continuous",
+                        "const": "SYNC_CONT"
+                      },
+                      {
+                        "title": "Synchronous, single-shot",
+                        "const": "SYNC_SINGLE"
+                      },
+                      {
+                        "title": "Window, continuous",
+                        "const": "WINDOW_CONT"
+                      }
+                    ],
+                    "default": "ASYNC_CONT"
+                  },
+                  "dflt_trigger": {
+                    "type": "object",
+                    "title": "Digital filter trigger",
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel && ($item.dflt_main.dflt_acquisition_mode !== 'ASYNC_CONT') && ($item.dflt_main.dflt_acquisition_mode !== 'ASYNC_SINGLE')",
+                        "message": "Available when the digital filter is used and the acquisition mode is not asynchronous."
+                      },
+                      {
+                        "type": "info",
+                        "condition": "true",
+                        "message": "The acquisition mode must be set to something different from asynchronous."
+                      }
+                    ],
+                    "properties": {
+                      "dflt_use_internal_trigger": {
+                        "type": "boolean",
+                        "title": "Use internal trigger signal as digital filter trigger source",
+                        "description": "ADF1_TRGO signal.",
+                        "default": false
+                      },
+                      "dflt_external_trigger_source": {
+                        "type": "object",
+                        "title": "Use external signal as digital filter trigger source",
+                        "objectType": "query",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.use_channel && !$item.dflt_main.dflt_trigger.dflt_use_internal_trigger",
+                            "message": "Available when the digital filter is used and the internal trigger is not selected."
+                          },
+                          {
+                            "type": "info",
+                            "condition": "true",
+                            "message": "The selected interconnect must be configured manually."
+                          }
+                        ],
+                        "query": {
+                          "entity": "peripheral.interconnect.input trigger",
+                          "parent": "$resource.id",
+                          "title": "{{source.toUpperCase()}}"
+                        }
+                      },
+                      "dflt_trigger_edge": {
+                        "type": "string",
+                        "title": "Digital filter trigger edge",
+                        "oneOf": [
+                          {
+                            "title": "Rising",
+                            "const": "RISING_EDGE"
+                          },
+                          {
+                            "title": "Falling",
+                            "const": "FALLING_EDGE"
+                          }
+                        ],
+                        "default": "RISING_EDGE"
+                      }
+                    }
+                  }
+                }
+              },
+              "dflt_additionnal": {
+                "type": "object",
+                "title": "Advanced digital filter features",
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "$item.use_channel",
+                    "message": "Available when the digital filter is used."
+                  }
+                ],
+                "properties": {
+                  "dflt_samples_delay_object": {
+                    "type": "object",
+                    "title": "Samples delay",
+                    "properties": {
+                      "dflt_samples_delay_use": {
+                        "type": "boolean",
+                        "title": "Use samples delay",
+                        "default": false
+                      },
+                      "dflt_samples_delay_value": {
+                        "type": "integer",
+                        "title": "Samples delay",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.dflt_additionnal.dflt_samples_delay_object.dflt_samples_delay_use",
+                            "message": "Available when samples delay is used."
+                          }
+                        ],
+                        "description": "From 0 to 127.",
+                        "minimum": 0,
+                        "maximum": 127,
+                        "default": 0,
+                        "display_format": [
+                          "dec",
+                          "hex"
+                        ]
+                      }
+                    }
+                  },
+                  "dflt_fifo_threshold_object": {
+                    "type": "object",
+                    "title": "FIFO threshold",
+                    "properties": {
+                      "dflt_fifo_threshold_use": {
+                        "type": "boolean",
+                        "title": "Set FIFO threshold",
+                        "default": false
+                      },
+                      "dflt_fifo_threshold_value": {
+                        "type": "string",
+                        "title": "FIFO threshold",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.dflt_additionnal.dflt_fifo_threshold_object.dflt_fifo_threshold_use",
+                            "message": "Available when FIFO threshold is set."
+                          }
+                        ],
+                        "oneOf": [
+                          {
+                            "title": "Not empty",
+                            "const": "NOT_EMPTY"
+                          },
+                          {
+                            "title": "Half-full",
+                            "const": "HALF_FULL"
+                          }
+                        ],
+                        "default": "NOT_EMPTY"
+                      }
+                    }
+                  },
+                  "dflt_discard_samples_object": {
+                    "type": "object",
+                    "title": "Discard samples",
+                    "properties": {
+                      "dflt_discard_samples_use": {
+                        "type": "boolean",
+                        "title": "Set discard samples",
+                        "default": false
+                      },
+                      "dflt_discard_samples_value": {
+                        "type": "integer",
+                        "title": "Discard samples",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.dflt_additionnal.dflt_discard_samples_object.dflt_discard_samples_use",
+                            "message": "Available when discard samples is set."
+                          }
+                        ],
+                        "description": "Amount of samples to be discarded after each filter restart, from 0 to 255.",
+                        "minimum": 0,
+                        "maximum": 255,
+                        "default": 0,
+                        "display_format": [
+                          "dec",
+                          "hex"
+                        ]
+                      }
+                    }
+                  },
+                  "dflt_reshape_filter_object": {
+                    "type": "object",
+                    "title": "Reshape filter",
+                    "properties": {
+                      "dflt_reshape_filter_use": {
+                        "type": "boolean",
+                        "title": "Set reshape filter parameters",
+                        "default": false
+                      },
+                      "dflt_reshape_filter_bypass": {
+                        "type": "boolean",
+                        "title": "Bypass reshape filter",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.dflt_additionnal.dflt_reshape_filter_object.dflt_reshape_filter_use",
+                            "message": "Available when reshape filter parameters are set."
+                          }
+                        ],
+                        "default": false
+                      },
+                      "dflt_reshape_filter_decimation_ratio": {
+                        "type": "string",
+                        "title": "Decimation ratio",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.dflt_additionnal.dflt_reshape_filter_object.dflt_reshape_filter_use && !$item.dflt_additionnal.dflt_reshape_filter_object.dflt_reshape_filter_bypass",
+                            "message": "Available when reshape filter is used and not bypassed."
+                          }
+                        ],
+                        "oneOf": [
+                          {
+                            "title": "4",
+                            "const": "4"
+                          },
+                          {
+                            "title": "1",
+                            "const": "1"
+                          }
+                        ],
+                        "default": "4"
+                      }
+                    }
+                  },
+                  "dflt_high_pass_filter_object": {
+                    "type": "object",
+                    "title": "High-pass filter",
+                    "properties": {
+                      "dflt_high_pass_filter_use": {
+                        "type": "boolean",
+                        "title": "Set high-pass filter parameters",
+                        "default": false
+                      },
+                      "dflt_high_pass_filter_bypass": {
+                        "type": "boolean",
+                        "title": "Bypass high-pass filter",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.dflt_additionnal.dflt_high_pass_filter_object.dflt_high_pass_filter_use",
+                            "message": "Available when high-pass filter parameters are set."
+                          }
+                        ],
+                        "default": false
+                      },
+                      "dflt_high_pass_filter_cut_off_freq": {
+                        "type": "string",
+                        "title": "Cut-off frequency",
+                        "description": "Fpcm is the frequency of the output data stream.",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.dflt_additionnal.dflt_high_pass_filter_object.dflt_high_pass_filter_use && !$item.dflt_additionnal.dflt_high_pass_filter_object.dflt_high_pass_filter_bypass",
+                            "message": "Available when high-pass filter is used and not bypassed."
+                          }
+                        ],
+                        "oneOf": [
+                          {
+                            "title": "0.000625 x Fpcm",
+                            "const": "0_000625FPCM"
+                          },
+                          {
+                            "title": "0.00125 x Fpcm",
+                            "const": "0_00125FPCM"
+                          },
+                          {
+                            "title": "0.0025 x Fpcm",
+                            "const": "0_0025FPCM"
+                          },
+                          {
+                            "title": "0.0095 x Fpcm",
+                            "const": "0_0095FPCM"
+                          }
+                        ],
+                        "default": "0_000625FPCM"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "sound_activity_detector": {
+          "type": "array",
+          "title": "Sound activity detector(s)",
+          "source": "Array.from({ length: $resource.features.NBF}, (_, i) => ({ id: (i), name: `Sound activity detector ${i}` }))",
+          "itemId": "id",
+          "itemTitle": "name",
+          "itemVar": "sound_activity_detector_sub_block",
+          "rendering": "channel-tabs",
+          "items": {
+            "type": "object",
+            "properties": {
+              "use_channel": {
+                "type": "boolean",
+                "title": "Use sound activity detector",
+                "actions": [
+                  {
+                    "type": "warning",
+                    "condition": "$item.use_channel && (!$digital_filter[$item._foreignKey].use_channel)",
+                    "message": "Digital filter of same index must be used and configured."
+                  }
+                ],
+                "default": false
+              },
+              "labels": {
+                "type": "array",
+                "title": "Add a label",
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "$item.use_channel",
+                    "message": "Available when the sound activity detector is used."
+                  }
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 32,
+                  "default": "",
+                  "actions": [
+                    {
+                      "type": "error",
+                      "condition": "!/^[A-Za-z_][A-Za-z0-9_]*$/.test($value)",
+                      "message": "Name must be a valid C identifier: start with a letter or underscore, and contain only letters, digits, or underscores."
+                    }
+                  ]
+                }
+              },
+              "sad_main": {
+                "type": "object",
+                "title": "Main sound activity detector features",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "title": "Mode",
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel",
+                        "message": "Available when the sound activity detector is used."
+                      }
+                    ],
+                    "oneOf": [
+                      {
+                        "title": "Voice activity detector",
+                        "const": "VOICE_ACTIVITY"
+                      },
+                      {
+                        "title": "Sound detector",
+                        "const": "SOUND"
+                      },
+                      {
+                        "title": "Ambient noise detector",
+                        "const": "AMBIENT_NOISE"
+                      }
+                    ],
+                    "default": "VOICE_ACTIVITY"
+                  },
+                  "memory_transfer": {
+                    "type": "string",
+                    "title": "Memory transfer",
+                    "description": "When samples will be transferred to memory.",
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel",
+                        "message": "Available when the sound activity detector is used."
+                      }
+                    ],
+                    "oneOf": [
+                      {
+                        "title": "Never",
+                        "const": "NO"
+                      },
+                      {
+                        "title": "Only during detection",
+                        "const": "DURING_DETECTION"
+                      },
+                      {
+                        "title": "Always",
+                        "const": "ALWAYS"
+                      }
+                    ],
+                    "default": "NO"
+                  },
+                  "trigger_event": {
+                    "type": "string",
+                    "title": "Trigger event",
+                    "description": "When sound event will be generated.",
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel",
+                        "message": "Available when the sound activity detector is used."
+                      }
+                    ],
+                    "oneOf": [
+                      {
+                        "title": "Start of detection",
+                        "const": "ENTER_DETECT"
+                      },
+                      {
+                        "title": "Start and end of detection",
+                        "const": "ENTER_EXIT_DETECT"
+                      }
+                    ],
+                    "default": "ENTER_DETECT"
+                  },
+                  "minimum_ambient_noise": {
+                    "type": "integer",
+                    "title": "Minimum ambient noise level",
+                    "actions": [
+                      {
+                        "type": "enable",
+                        "condition": "$item.use_channel",
+                        "message": "Available when the sound activity detector is used."
+                      }
+                    ],
+                    "minimum": 0,
+                    "maximum": 8191,
+                    "default": 0,
+                    "display_format": [
+                      "dec"
+                    ]
+                  }
+                }
+              },
+              "sad_additionnal": {
+                "type": "object",
+                "title": "Advanced sound activity detector features",
+                "actions": [
+                  {
+                    "type": "enable",
+                    "condition": "$item.use_channel",
+                    "message": "Available when the sound activity detector is used."
+                  }
+                ],
+                "properties": {
+                  "frame_size_objet": {
+                    "type": "object",
+                    "title": "Frame size",
+                    "properties": {
+                      "frame_size_use": {
+                        "type": "boolean",
+                        "title": "Set frame size",
+                        "default": false
+                      },
+                      "frame_size_value": {
+                        "type": "string",
+                        "title": "Frame size",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.sad_additionnal.frame_size_objet.frame_size_use",
+                            "message": "Available when the frame size is set."
+                          }
+                        ],
+                        "oneOf": [
+                          {
+                            "title": "8 PCM samples",
+                            "const": "8_PCM_SAMPLES"
+                          },
+                          {
+                            "title": "16 PCM samples",
+                            "const": "16_PCM_SAMPLES"
+                          },
+                          {
+                            "title": "32 PCM samples",
+                            "const": "32_PCM_SAMPLES"
+                          },
+                          {
+                            "title": "64 PCM samples",
+                            "const": "64_PCM_SAMPLES"
+                          },
+                          {
+                            "title": "128 PCM samples",
+                            "const": "128_PCM_SAMPLES"
+                          },
+                          {
+                            "title": "256 PCM samples",
+                            "const": "256_PCM_SAMPLES"
+                          },
+                          {
+                            "title": "512 PCM samples",
+                            "const": "512_PCM_SAMPLES"
+                          }
+                        ],
+                        "default": "8_PCM_SAMPLES"
+                      }
+                    }
+                  },
+                  "learning_frames_object": {
+                    "type": "object",
+                    "title": "Learning frames",
+                    "properties": {
+                      "learning_frames_use": {
+                        "type": "boolean",
+                        "title": "Set learning frames",
+                        "default": false
+                      },
+                      "learning_frames_value": {
+                        "type": "string",
+                        "title": "Learning frames",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.sad_additionnal.learning_frames_object.learning_frames_use",
+                            "message": "Available when the learning frames are set."
+                          }
+                        ],
+                        "oneOf": [
+                          {
+                            "title": "2",
+                            "const": "2"
+                          },
+                          {
+                            "title": "4",
+                            "const": "4"
+                          },
+                          {
+                            "title": "8",
+                            "const": "8"
+                          },
+                          {
+                            "title": "16",
+                            "const": "16"
+                          },
+                          {
+                            "title": "32",
+                            "const": "32"
+                          }
+                        ],
+                        "default": "2"
+                      }
+                    }
+                  },
+                  "signal_to_noise_threshold_object": {
+                    "type": "object",
+                    "title": "Signal to noise threshold",
+                    "properties": {
+                      "signal_to_noise_threshold_use": {
+                        "type": "boolean",
+                        "title": "Set signal to noise threshold",
+                        "default": false
+                      },
+                      "signal_to_noise_threshold_value": {
+                        "type": "string",
+                        "title": "Signal to noise threshold",
+                        "description": "In dB.",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.sad_additionnal.signal_to_noise_threshold_object.signal_to_noise_threshold_use",
+                            "message": "Available when the signal to noise threshold is set."
+                          }
+                        ],
+                        "oneOf": [
+                          {
+                            "title": "3.5",
+                            "const": "3_5_DB"
+                          },
+                          {
+                            "title": "6",
+                            "const": "6_DB"
+                          },
+                          {
+                            "title": "9.5",
+                            "const": "9_5_DB"
+                          },
+                          {
+                            "title": "12",
+                            "const": "12_DB"
+                          },
+                          {
+                            "title": "15.6",
+                            "const": "15_6_DB"
+                          },
+                          {
+                            "title": "18",
+                            "const": "18_DB"
+                          },
+                          {
+                            "title": "21.6",
+                            "const": "21_6_DB"
+                          },
+                          {
+                            "title": "24.1",
+                            "const": "24_1_DB"
+                          },
+                          {
+                            "title": "27.6",
+                            "const": "27_6_DB"
+                          },
+                          {
+                            "title": "30.1",
+                            "const": "30_1_DB"
+                          }
+                        ],
+                        "default": "3_5_DB"
+                      }
+                    }
+                  },
+                  "ambient_noise_slope_object": {
+                    "type": "object",
+                    "title": "Ambient noise slope",
+                    "properties": {
+                      "ambient_noise_slope_use": {
+                        "type": "boolean",
+                        "title": "Set ambient noise slope",
+                        "default": false
+                      },
+                      "ambient_noise_slope_value": {
+                        "type": "integer",
+                        "title": "Ambient noise slope",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.sad_additionnal.ambient_noise_slope_object.ambient_noise_slope_use",
+                            "message": "Available when the ambient noise slope is set."
+                          }
+                        ],
+                        "minimum": 0,
+                        "maximum": 7,
+                        "default": 0,
+                        "display_format": [
+                          "dec"
+                        ]
+                      }
+                    }
+                  },
+                  "hangover_time_window_object": {
+                    "type": "object",
+                    "title": "Hangover time window",
+                    "properties": {
+                      "hangover_time_window_use": {
+                        "type": "boolean",
+                        "title": "Set hangover time window",
+                        "default": false
+                      },
+                      "hangover_time_window_value": {
+                        "type": "string",
+                        "title": "Hangover time window",
+                        "actions": [
+                          {
+                            "type": "enable",
+                            "condition": "$item.sad_additionnal.hangover_time_window_object.hangover_time_window_use",
+                            "message": "Available when the hangover time window is set."
+                          }
+                        ],
+                        "oneOf": [
+                          {
+                            "title": "4 frames",
+                            "const": "4_FRAMES"
+                          },
+                          {
+                            "title": "8 frames",
+                            "const": "8_FRAMES"
+                          },
+                          {
+                            "title": "16 frames",
+                            "const": "16_FRAMES"
+                          },
+                          {
+                            "title": "32 frames",
+                            "const": "32_FRAMES"
+                          },
+                          {
+                            "title": "64 frames",
+                            "const": "64_FRAMES"
+                          },
+                          {
+                            "title": "128 frames",
+                            "const": "128_FRAMES"
+                          },
+                          {
+                            "title": "256 frames",
+                            "const": "256_FRAMES"
+                          },
+                          {
+                            "title": "512 frames",
+                            "const": "512_FRAMES"
+                          }
+                        ],
+                        "default": "4_FRAMES"
+                      }
+                    }
+                  },
+                  "hysteresis_object": {
+                    "type": "object",
+                    "title": "Hysteresis",
+                    "properties": {
+                      "hysteresis_value": {
+                        "type": "boolean",
+                        "title": "Hysteresis",
+                        "default": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security_privilege": {
+          "title": "Security and privilege",
+          "description": "Manage security and privileged access levels attributes.",
+          "type": "object",
+          "actions": [
+            {
+              "type": "exclude",
+              "condition": "($get('swproject.getCurrentEngine') === null) || ($get('swproject.getCurrentEngine').secure === 'TZ-disabled')"
+            },
+            {
+              "type": "set",
+              "condition": "$get('swproject.getCurrentEngine').secure === 'Non-secure'",
+              "attributes": {
+                "title": "Privileged",
+                "description": "Manage privileged access levels attributes."
+              }
+            }
+          ],
+          "properties": {
+            "security": {
+              "type": "string",
+              "title": "Security attribute",
+              "description": "Set the security attribute of the securable peripheral.",
+              "actions": [
+                {
+                  "type": "include",
+                  "condition": "($get('swproject.getCurrentEngine').secure === 'Secure') || ($get('swproject.getCurrentEngine').secure === 'Secure-only')"
+                },
+                {
+                  "type": "set",
+                  "attributes": {
+                    "const": "SEC"
+                  },
+                  "condition": "$get('peripheral.isBound', $resource.id)"
+                },
+                {
+                  "type": "set",
+                  "attributes": {
+                    "const": "NSEC"
+                  },
+                  "condition": "!$get('peripheral.isBound', $resource.id)"
+                },
+                {
+                  "type": "disable",
+                  "condition": "$get('peripheral.isBound', $resource.id)",
+                  "message": "The security attribute of the peripheral is automatically set to secure when the peripheral is bound to a secure resource and to non-secure when it is not. Manual configuration is not allowed."
+                }
+              ],
+              "synchronize": true,
+              "synchronizeOn": {
+                "component": "ST-HAL",
+                "path": "rif-risc-peripheral-sec-attr",
+                "custom": "$resource.id"
+              },
+              "oneOf": [
+                {
+                  "title": "Secure",
+                  "const": "SEC"
+                },
+                {
+                  "title": "Non-secure",
+                  "const": "NSEC"
+                }
+              ],
+              "default": "NSEC"
+            },
+            "privilege": {
+              "type": "string",
+              "title": "Privileged attribute",
+              "description": "Manage the privileged attribute of a securable RISC peripheral.",
+              "synchronize": true,
+              "synchronizeOn": {
+                "component": "ST-HAL",
+                "path": "rif-risc-peripheral-priv-attr",
+                "custom": "$resource.id"
+              },
+              "oneOf": [
+                {
+                  "title": "Privileged",
+                  "const": "PRIV"
+                },
+                {
+                  "title": "Unprivileged",
+                  "const": "NPRIV"
+                }
+              ],
+              "default": "PRIV"
+            },
+            "lock": {
+              "type": "boolean",
+              "title": "Lock",
+              "description": "Optional. Lock security and privilege attributes to prevent changes.",
+              "actions": [
+                {
+                  "type": "include",
+                  "condition": "($get('swproject.getCurrentEngine').secure === 'Secure') || ($get('swproject.getCurrentEngine').secure === 'Secure-only')"
+                }
+              ],
+              "synchronize": true,
+              "synchronizeOn": {
+                "component": "ST-HAL",
+                "path": "rif-risc-peripheral-lock-attr",
+                "custom": "$resource.id"
+              },
+              "default": false
+            },
+            "illegal_access": {
+              "title": "Illegal access interrupt",
+              "actions": [
+                {
+                  "type": "include",
+                  "condition": "($get('swproject.getCurrentEngine').secure === 'Secure') || ($get('swproject.getCurrentEngine').secure === 'Secure-only')"
+                },
+                {
+                  "type": "disable",
+                  "condition": "($get('swproject.getCurrentEngine').secure === 'Secure-only')",
+                  "message": "Secure-only mode: Illegal access interrupt is forced to disabled."
+                }
+              ],
+              "synchronize": true,
+              "synchronizeOn": {
+                "component": "ST-HAL",
+                "path": "rif-iac-peripheral",
+                "custom": "$resource.id"
+              },
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+        "system": {
+          "type": "object",
+          "title": "System",
+          "properties": {
+            "gpio": {
+              "type": "object",
+              "title": "GPIO",
+              "properties": {
+                "common_clock_0": {
+                  "type": "object",
+                  "title": "ADF_CCK0",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "$additional.common_output_clocks_configuration.use_common_clock_0 || $common.helper_adf_check_cck_on_sitf($serial_interface, 0)"
+                    },
+                    {
+                      "type": "set",
+                      "computed": {
+                        "title": "$resource.id + '_CCK0'"
+                      }
+                    }
+                  ],
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.id",
+                  "needs": [
+                    {
+                      "selector": "CCK0",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "common_clock_1": {
+                  "type": "object",
+                  "title": "ADF_CCK1",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "$additional.common_output_clocks_configuration.use_common_clock_1 || $common.helper_adf_check_cck_on_sitf($serial_interface, 1)"
+                    },
+                    {
+                      "type": "set",
+                      "computed": {
+                        "title": "$resource.id + '_CCK1'"
+                      }
+                    }
+                  ],
+                  "objectType": "need.pinout.signals",
+                  "variables": [
+                    {
+                      "on": "update-value",
+                      "name": "HAL_GPIO_PROJECT_USE_HAL",
+                      "condition": "$info.layer === 'HAL'",
+                      "semaphore": true
+                    }
+                  ],
+                  "owner": "$resource.id",
+                  "needs": [
+                    {
+                      "selector": "CCK1",
+                      "constraints": {
+                        "mode": {
+                          "const": "ALTERNATE"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "serial_interface_0": {
+                  "type": "object",
+                  "title": "Serial interface 0",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "$common.helper_adf_check_sub_block_usage($serial_interface, 0)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI0",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI0'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI0",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_1": {
+                  "type": "object",
+                  "title": "Serial interface 1",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 2) && $common.helper_adf_check_sub_block_usage($serial_interface, 1)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI1",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI1'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI1",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_2": {
+                  "type": "object",
+                  "title": "Serial interface 2",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 3) && $common.helper_adf_check_sub_block_usage($serial_interface, 2)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI2",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI2'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI2",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_3": {
+                  "type": "object",
+                  "title": "Serial interface 3",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 4) && $common.helper_adf_check_sub_block_usage($serial_interface, 3)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI3",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI3'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI3",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_4": {
+                  "type": "object",
+                  "title": "Serial interface 4",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 5) && $common.helper_adf_check_sub_block_usage($serial_interface, 4)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI4",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI4'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI4",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_5": {
+                  "type": "object",
+                  "title": "Serial interface 5",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 6) && $common.helper_adf_check_sub_block_usage($serial_interface, 5)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI5",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI5'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI5",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_6": {
+                  "type": "object",
+                  "title": "Serial interface 6",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 7) && $common.helper_adf_check_sub_block_usage($serial_interface, 6)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI6",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI6'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI6",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_7": {
+                  "type": "object",
+                  "title": "Serial interface 7",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 8) && $common.helper_adf_check_sub_block_usage($serial_interface, 7)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI7",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI7'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI7",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_8": {
+                  "type": "object",
+                  "title": "Serial interface 8",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 9) && $common.helper_adf_check_sub_block_usage($serial_interface, 8)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI8",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI8'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI8",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_9": {
+                  "type": "object",
+                  "title": "Serial interface 9",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 10) && $common.helper_adf_check_sub_block_usage($serial_interface, 9)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI9",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI9'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI9",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_10": {
+                  "type": "object",
+                  "title": "Serial interface 10",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 11) && $common.helper_adf_check_sub_block_usage($serial_interface, 10)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI10",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI10'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI10",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_11": {
+                  "type": "object",
+                  "title": "Serial interface 11",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 12) && $common.helper_adf_check_sub_block_usage($serial_interface, 11)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI11",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI11'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI11",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_12": {
+                  "type": "object",
+                  "title": "Serial interface 12",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 13) && $common.helper_adf_check_sub_block_usage($serial_interface, 12)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI12",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI12'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI12",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_13": {
+                  "type": "object",
+                  "title": "Serial interface 13",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 14) && $common.helper_adf_check_sub_block_usage($serial_interface, 13)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI13",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI13'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI13",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_14": {
+                  "type": "object",
+                  "title": "Serial interface 14",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 15) && $common.helper_adf_check_sub_block_usage($serial_interface, 14)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI14",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI14'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI14",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "serial_interface_15": {
+                  "type": "object",
+                  "title": "Serial interface 15",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 16) && $common.helper_adf_check_sub_block_usage($serial_interface, 15)"
+                    }
+                  ],
+                  "properties": {
+                    "sdi": {
+                      "type": "object",
+                      "title": "ADF_SDI15",
+                      "actions": [
+                        {
+                          "type": "set",
+                          "computed": {
+                            "title": "$resource.id + '_SDI15'"
+                          }
+                        }
+                      ],
+                      "objectType": "need.pinout.signals",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_GPIO_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "SDI15",
+                          "constraints": {
+                            "mode": {
+                              "const": "ALTERNATE"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "dma": {
+              "type": "object",
+              "title": "DMA",
+              "properties": {
+                "dflt_0": {
+                  "type": "object",
+                  "title": "DMA for digital filter 0",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "$common.helper_adf_check_sub_block_usage($digital_filter, 0)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 0",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 0",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_0.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt0",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_1": {
+                  "type": "object",
+                  "title": "DMA for digital filter 1",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 2) && $common.helper_adf_check_sub_block_usage($digital_filter, 1)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 1",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 1",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_1.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt1",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_2": {
+                  "type": "object",
+                  "title": "DMA for digital filter 2",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 3) && $common.helper_adf_check_sub_block_usage($digital_filter, 2)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 2",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 2",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_2.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt2",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_3": {
+                  "type": "object",
+                  "title": "DMA for digital filter 3",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 4) && $common.helper_adf_check_sub_block_usage($digital_filter, 3)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 3",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 3",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_3.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt3",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_4": {
+                  "type": "object",
+                  "title": "DMA for digital filter 4",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 5) && $common.helper_adf_check_sub_block_usage($digital_filter, 4)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 4",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 4",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_4.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt4",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_5": {
+                  "type": "object",
+                  "title": "DMA for digital filter 5",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 6) && $common.helper_adf_check_sub_block_usage($digital_filter, 5)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 5",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 5",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_5.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt5",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_6": {
+                  "type": "object",
+                  "title": "DMA for digital filter 6",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 7) && $common.helper_adf_check_sub_block_usage($digital_filter, 6)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 6",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 6",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_6.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt6",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_7": {
+                  "type": "object",
+                  "title": "DMA for digital filter 7",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 8) && $common.helper_adf_check_sub_block_usage($digital_filter, 7)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 7",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 7",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_7.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt7",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_8": {
+                  "type": "object",
+                  "title": "DMA for digital filter 8",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 9) && $common.helper_adf_check_sub_block_usage($digital_filter, 8)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 8",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 8",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_8.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt8",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_9": {
+                  "type": "object",
+                  "title": "DMA for digital filter 9",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 10) && $common.helper_adf_check_sub_block_usage($digital_filter, 9)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 9",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 9",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_9.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt9",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_10": {
+                  "type": "object",
+                  "title": "DMA for digital filter 10",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 11) && $common.helper_adf_check_sub_block_usage($digital_filter, 10)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 10",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 10",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_10.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt10",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_11": {
+                  "type": "object",
+                  "title": "DMA for digital filter 11",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 12) && $common.helper_adf_check_sub_block_usage($digital_filter, 11)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 11",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 11",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_11.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt11",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_12": {
+                  "type": "object",
+                  "title": "DMA for digital filter 12",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 13) && $common.helper_adf_check_sub_block_usage($digital_filter, 12)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 12",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 12",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_12.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt12",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_13": {
+                  "type": "object",
+                  "title": "DMA for digital filter 13",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 14) && $common.helper_adf_check_sub_block_usage($digital_filter, 13)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 13",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 13",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_13.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt13",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_14": {
+                  "type": "object",
+                  "title": "DMA for digital filter 14",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 15) && $common.helper_adf_check_sub_block_usage($digital_filter, 14)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 14",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 14",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_14.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt14",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "dflt_15": {
+                  "type": "object",
+                  "title": "DMA for digital filter 15",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 16) && $common.helper_adf_check_sub_block_usage($digital_filter, 15)"
+                    }
+                  ],
+                  "properties": {
+                    "use_dma": {
+                      "title": "DMA for digital filter 15",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "config_dma": {
+                      "title": "DMA for digital filter 15",
+                      "type": "object",
+                      "objectType": "need.dma.channels",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_DMA_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.dma.dflt_15.use_dma"
+                        }
+                      ],
+                      "needs": [
+                        {
+                          "selector": "flt15",
+                          "constraints": {
+                            "dma_mode": {
+                              "default": 2
+                            },
+                            "direction": {
+                              "const": "PERIPH_TO_MEMORY"
+                            },
+                            "src_inc": {
+                              "const": "FIXED"
+                            },
+                            "dest_inc": {
+                              "default": "INCREMENTED"
+                            },
+                            "src_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            },
+                            "dest_data_width": {
+                              "allow": [
+                                "WORD",
+                                "HALFWORD"
+                              ],
+                              "default": "WORD"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "nvic": {
+              "type": "object",
+              "title": "NVIC",
+              "properties": {
+                "it_filter0": {
+                  "type": "object",
+                  "title": "Global interrupt for block 0",
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter0.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 0",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT0"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter0.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter1": {
+                  "type": "object",
+                  "title": "Global interrupt for block 1",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 2)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter1.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 1",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT1"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter1.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter2": {
+                  "type": "object",
+                  "title": "Global interrupt for block 2",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 3)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter2.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 2",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT2"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter2.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter3": {
+                  "type": "object",
+                  "title": "Global interrupt for block 3",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 4)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter3.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 3",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT3"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter3.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter4": {
+                  "type": "object",
+                  "title": "Global interrupt for block 4",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 5)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter4.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 4",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT4"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter4.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter5": {
+                  "type": "object",
+                  "title": "Global interrupt for block 5",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 6)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter5.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 5",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT5"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter5.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter6": {
+                  "type": "object",
+                  "title": "Global interrupt for block 6",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 7)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter6.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 6",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT6"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter6.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter7": {
+                  "type": "object",
+                  "title": "Global interrupt for block 7",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 8)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter7.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 7",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT7"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter7.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter8": {
+                  "type": "object",
+                  "title": "Global interrupt for block 8",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 9)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter8.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 8",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT8"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter8.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter9": {
+                  "type": "object",
+                  "title": "Global interrupt for block 9",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 10)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter9.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 9",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT9"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter9.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter10": {
+                  "type": "object",
+                  "title": "Global interrupt for block 10",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 11)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter10.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 10",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT10"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter10.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter11": {
+                  "type": "object",
+                  "title": "Global interrupt for block 11",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 12)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter11.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 11",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT11"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter11.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter12": {
+                  "type": "object",
+                  "title": "Global interrupt for block 12",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 13)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter12.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 12",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT12"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter12.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter13": {
+                  "type": "object",
+                  "title": "Global interrupt for block 13",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 14)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter13.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 13",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT13"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter13.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter14": {
+                  "type": "object",
+                  "title": "Global interrupt for block 14",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 15)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter14.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 14",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT14"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter14.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "it_filter15": {
+                  "type": "object",
+                  "title": "Global interrupt for block 15",
+                  "actions": [
+                    {
+                      "type": "include",
+                      "condition": "($resource.features.NBF >= 16)"
+                    }
+                  ],
+                  "properties": {
+                    "enable_it": {
+                      "title": "Interrupt",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "irq_handler_generation": {
+                      "type": "boolean",
+                      "title": "IRQ handler generation",
+                      "default": true,
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter15.enable_it"
+                        }
+                      ]
+                    },
+                    "nvic_config": {
+                      "title": "Global interrupt for block 15",
+                      "type": "object",
+                      "objectType": "need.interrupt.lines",
+                      "variables": [
+                        {
+                          "on": "update-value",
+                          "name": "HAL_CORTEX_PROJECT_USE_HAL",
+                          "condition": "$info.layer === 'HAL'",
+                          "semaphore": true
+                        }
+                      ],
+                      "owner": "$resource.id",
+                      "needs": [
+                        {
+                          "selector": "FLT15"
+                        }
+                      ],
+                      "actions": [
+                        {
+                          "type": "include",
+                          "condition": "$system.nvic.it_filter15.enable_it"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

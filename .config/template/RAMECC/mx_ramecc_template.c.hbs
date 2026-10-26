@@ -1,0 +1,282 @@
+{{!--
+  ******************************************************************************
+  * @file           : mx_ramecc_template.c.hbs
+  * @brief          : {{@root.current_resource}} Peripheral initialization
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  ~--}}
+{{#helper_common_beautifier}}
+{{assign "codegen_ctxt" (helper_common_get_codegen_context 'RAMECC' (get '') @root.EnvVarAPI @root.peripheralsResourceManagerAPI @root.SWConfigurationAPI)~}}
+{{log "RAMECC template codegen_ctxt:" @root.codegen_ctxt~}}
+{{assign 'strategy' @root.codegen_ctxt.strategy~}}
+{{assign 'current_resource' @root.codegen_ctxt.current_resource~}}
+{{assign 'instances' @root.codegen_ctxt.instances~}}
+{{> SYSTEM fct='system_check_ll_optim'}}
+{{~assign 'ramecc_lut_table' (helper_ramecc_get_lut_table 'V1')~}}
+{{~helper_common_initialize_ll_code @root.optim_enable @root.ramecc_lut_table undefined}}
+/**
+  ******************************************************************************
+  * @file           : mx_{{lowercase @root.current_resource}}.c
+  * @brief          : {{@root.current_resource}} Peripheral initialization
+{{> LICENSE}}
+
+/* Includes ------------------------------------------------------------------*/
+#include "mx_{{lowercase @root.current_resource}}.h"
+
+{{~assign 'nvic_context' 'undefined'}}
+{{~assign 'generate_global_handler' false}}
+{{#each @root.instances}}
+  {{~assign 'ramecc_ctx' config~}}
+  {{log "RAMECC template ramecc_ctx:" @root.ramecc_ctx~}}
+  {{~assign 'current_layer' @root.ramecc_ctx.info.layer~}}
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+  {{~assign 'fct_name' (helper_common_get_generated_function_name @root.current_resource @root.current_layer undefined)}}
+  {{#with @root.ramecc_ctx}}
+    {{#if (eq @root.current_layer 'LL')}}
+      {{#with additional.controller}}
+        {{#if enable_ecc}}
+#define MONITOR_NB {{@root.ramecc_ctx.additional.monitor.length}}
+
+        {{/if}}
+      {{/with}}
+    {{/if}}
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
+    {{#if (eq @root.current_layer 'LL')}}
+      {{#with additional.controller}}
+        {{#if enable_ecc}}
+RAMECC_Monitor_TypeDef *{{lowercase @root.current_resource}}_monitor_array[MONITOR_NB] =
+{
+          {{#each @root.ramecc_ctx.additional.monitor}}
+  {{@root.current_resource}}_{{_foreignKey}}{{#unless @last}},{{/unless}}
+          {{/each}}
+};
+
+        {{/if}}
+      {{/with}}
+    {{/if}}
+/* Private functions prototype------------------------------------------------*/
+/* Exported variables by reference--------------------------------------------*/
+/******************************************************************************/
+/* Exported functions for {{@root.current_resource}} in {{@root.current_layer}} layer                                */
+/******************************************************************************/
+    {{#if (eq @root.current_layer 'HAL')}}
+hal_ramecc_controller_t {{@root.fct_name}}_init(void)
+{
+      {{#with additional}}
+        {{#with controller}}
+          {{#if enable_ecc}}
+            {{#if (or enable_global_interrupt enable_single_interrupt enable_double_interrupt enable_double_on_byte_write_interrupt)}}
+  /* Controller configuration */
+  HAL_RAMECC_EnableController_IT(HAL_{{@root.current_resource}}, {{helper_ramecc_get_global_it_enum 'HAL' this}});
+            {{else}}
+  /* Controller configuration */
+  HAL_RAMECC_EnableController(HAL_{{@root.current_resource}});
+            {{/if}}
+
+          {{/if}}
+        {{/with}}
+        {{#with monitor}}
+          {{#each this}}
+            {{#if enable_ecc}}
+              {{#if (and (not (or enable_single_interrupt enable_double_interrupt enable_double_on_byte_write_interrupt)) (not @root.ramecc_ctx.additional.controller.enable_ecc))}}
+  /* {{_foreignKey}} configuration */
+  HAL_RAMECC_EnableMonitor(HAL_RAMECC_{{_foreignKey}});
+              {{else}}
+                {{#if (or (not @root.ramecc_ctx.additional.controller.enable_ecc)(and (not @root.ramecc_ctx.additional.controller.enable_global_interrupt)(or (and enable_single_interrupt (not @root.ramecc_ctx.additional.controller.enable_single_interrupt)) (and enable_double_interrupt (not @root.ramecc_ctx.additional.controller.enable_double_interrupt)) (and enable_double_on_byte_write_interrupt (not @root.ramecc_ctx.additional.controller.enable_double_on_byte_write_interrupt)))))}}
+  /* {{_foreignKey}} configuration */
+  HAL_RAMECC_EnableMonitor_IT(HAL_RAMECC_{{_foreignKey}}, {{helper_ramecc_get_monitor_it_enum 'HAL' @root.ramecc_ctx.additional.controller this}});
+                {{/if}}
+              {{/if}}
+
+            {{/if}}
+          {{/each}}
+        {{/with}}
+      {{/with}}
+      {{#with system.nvic}}
+        {{#if irq_handler_generation }}
+          {{~assign 'generate_global_handler' true}}
+        {{/if}}
+        {{#if ramecc_interruption}}
+  /* Enable the interruption for RAMECC */
+          {{~assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context @root.nvic_context irq_config.needs @root.current_resource irq_handler_generation)}}
+          {{#> CORTEX fct='init' layer=@root.current_layer needs=irq_config.needs}}
+          {{/CORTEX}}
+        {{/if}}
+      {{/with}}
+
+  return HAL_{{@root.current_resource}};
+}
+
+void {{@root.fct_name}}_deinit(void)
+{
+      {{#with additional}}
+        {{#if controller.enable_ecc}}
+  /* Disable global interrupts */
+  HAL_RAMECC_DisableController(HAL_{{@root.current_resource}});
+
+        {{else}}
+          {{#with monitor}}
+            {{#each this}}
+              {{#if enable_ecc}}
+  /* Disable {{_foreignKey}} interrupts */
+  HAL_RAMECC_DisableMonitor(HAL_RAMECC_{{_foreignKey}});
+
+              {{/if}}
+            {{/each}}
+          {{/with}}
+        {{/if}}
+      {{/with}}
+      {{#with system.nvic}}
+        {{#if ramecc_interruption}}
+  /* Disable the interruption for RAMECC */
+          {{#> CORTEX fct='deinit' layer=@root.current_layer}}
+          {{/CORTEX}}
+        {{/if}}
+      {{/with}}
+}
+    {{else}}
+{{!
+Generation of initialization function used in LL
+~}}
+      {{#if system.nvic.ramecc_interruption }}
+        {{~assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context @root.nvic_context system.nvic.irq_config.needs @root.current_resource false)~}}
+      {{/if}}
+RAMECC_TypeDef *{{@root.fct_name}}_init(void)
+{
+      {{#with additional}}
+        {{#with controller}}
+          {{#if enable_ecc}}
+  /* Global interrupts configuration */
+  for (uint32_t idx = 0U; idx < MONITOR_NB; idx++)
+  {
+    {{helper_common_gen_ll_code 'LL_RAMECC_ClearFlag' (concat (lowercase @root.current_resource) '_monitor_array[idx]') 'LL_RAMECC_FLAG_ALL'}}
+    LL_RAMECC_EnableAddressLatch({{lowercase @root.current_resource}}_monitor_array[idx]);
+  }
+
+            {{#if (or enable_global_interrupt enable_single_interrupt enable_double_interrupt enable_double_on_byte_write_interrupt)}}
+  LL_RAMECC_EnableGlobalIT({{@root.current_resource}}, {{helper_ramecc_get_global_it_enum 'LL' this}});
+
+            {{/if}}
+          {{/if}}
+        {{/with}}
+        {{#with monitor}}
+          {{#each this}}
+            {{#if enable_ecc}}
+              {{#if (or (not @root.ramecc_ctx.additional.controller.enable_ecc)(and (not @root.ramecc_ctx.additional.controller.enable_global_interrupt)(or (and enable_single_interrupt (not @root.ramecc_ctx.additional.controller.enable_single_interrupt)) (and enable_double_interrupt (not @root.ramecc_ctx.additional.controller.enable_double_interrupt)) (and enable_double_on_byte_write_interrupt (not @root.ramecc_ctx.additional.controller.enable_double_on_byte_write_interrupt)))))}}
+  /* {{_foreignKey}} configuration */
+  {{helper_common_gen_ll_code 'LL_RAMECC_ClearFlag' (concat @root.current_resource '_' _foreignKey) 'LL_RAMECC_FLAG_ALL'}}
+              {{/if}}
+              {{#if (not @root.ramecc_ctx.additional.controller.enable_ecc)}}
+  LL_RAMECC_EnableAddressLatch({{@root.current_resource}}_{{_foreignKey}});
+              {{/if}}
+              {{#if (and (or enable_single_interrupt enable_double_interrupt enable_double_on_byte_write_interrupt) (or (not @root.ramecc_ctx.additional.controller.enable_ecc) (and (not @root.ramecc_ctx.additional.controller.enable_global_interrupt) (or (and enable_single_interrupt (not @root.ramecc_ctx.additional.controller.enable_single_interrupt)) (and enable_double_interrupt (not @root.ramecc_ctx.additional.controller.enable_double_interrupt)) (and enable_double_on_byte_write_interrupt (not @root.ramecc_ctx.additional.controller.enable_double_on_byte_write_interrupt))))))}}
+  LL_RAMECC_EnableMonitorIT({{@root.current_resource}}_{{_foreignKey}}, {{helper_ramecc_get_monitor_it_enum 'LL' @root.ramecc_ctx.additional.controller this}});
+              {{/if}}
+
+            {{/if}}
+          {{/each}}
+        {{/with}}
+      {{/with}}
+      {{#with system.nvic}}
+        {{#if ramecc_interruption}}
+  /* Enable the interruption for RAMECC */
+          {{~assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context @root.nvic_context irq_config.needs @root.current_resource irq_handler_generation)}}
+          {{#> CORTEX fct='init' layer=@root.current_layer needs=irq_config.needs}}
+          {{/CORTEX}}
+        {{/if}}
+      {{/with}}
+
+  return {{@root.current_resource}};
+}
+
+void {{@root.fct_name}}_deinit(void)
+{
+      {{#with additional}}
+        {{#with controller}}
+          {{#if enable_ecc}}
+  /* Disable global interrupts */
+  for (uint32_t idx = 0U; idx < MONITOR_NB; idx++)
+  {
+    LL_RAMECC_DisableAddressLatch({{lowercase @root.current_resource}}_monitor_array[idx]);
+  }
+
+            {{#if (or (not @root.ramecc_ctx.additional.controller.enable_ecc) (or enable_single_interrupt enable_double_interrupt enable_double_on_byte_write_interrupt))}}
+  LL_RAMECC_DisableGlobalIT({{@root.current_resource}}, {{helper_ramecc_get_global_it_enum 'LL' this}});
+
+            {{/if}}
+          {{/if}}
+        {{/with}}
+        {{#with monitor}}
+          {{#each this}}
+            {{#if (or (and (not @root.ramecc_ctx.additional.controller.enable_ecc) enable_ecc) (and (or enable_single_interrupt enable_double_interrupt enable_double_on_byte_write_interrupt) (or (not @root.ramecc_ctx.additional.controller.enable_ecc) (and (not @root.ramecc_ctx.additional.controller.enable_global_interrupt) (or (and enable_single_interrupt (not @root.ramecc_ctx.additional.controller.enable_single_interrupt)) (and enable_double_interrupt (not @root.ramecc_ctx.additional.controller.enable_double_interrupt)) (and enable_double_on_byte_write_interrupt (not @root.ramecc_ctx.additional.controller.enable_double_on_byte_write_interrupt)))))))}}
+  /* Disable {{_foreignKey}} interrupts */
+            {{/if}}
+            {{#if (and (not @root.ramecc_ctx.additional.controller.enable_ecc) enable_ecc)}}
+  LL_RAMECC_DisableAddressLatch({{@root.current_resource}}_{{_foreignKey}});
+            {{/if}}
+            {{#if (and (or enable_single_interrupt enable_double_interrupt enable_double_on_byte_write_interrupt) (or (not @root.ramecc_ctx.additional.controller.enable_ecc) (and (not @root.ramecc_ctx.additional.controller.enable_global_interrupt) (or (and enable_single_interrupt (not @root.ramecc_ctx.additional.controller.enable_single_interrupt)) (and enable_double_interrupt (not @root.ramecc_ctx.additional.controller.enable_double_interrupt)) (and enable_double_on_byte_write_interrupt (not @root.ramecc_ctx.additional.controller.enable_double_on_byte_write_interrupt))))))}}
+  LL_RAMECC_DisableMonitorIT({{@root.current_resource}}_{{_foreignKey}}, {{helper_ramecc_get_monitor_it_enum 'LL' @root.ramecc_ctx.additional.controller this}});
+            {{/if}}
+
+          {{/each}}
+        {{/with}}
+      {{/with}}
+      {{#with system.nvic}}
+        {{#if ramecc_interruption}}
+  /* Disable the interruption for RAMECC */
+          {{#> CORTEX fct='deinit' layer=@root.current_layer}}
+          {{/CORTEX}}
+        {{/if}}
+      {{/with}}
+}
+    {{/if}}
+  {{/with}}
+  {{#if @root.only_ll}}
+    {{~assign 'generate_global_handler' false~}}
+  {{/if}}
+
+{{/each}}
+{{#if (eq @root.generate_global_handler true)}}
+/******************************************************************************/
+/* RAMECC global interrupt (Grouping interrupts of all active RAMECC instances)*/
+/******************************************************************************/
+void RAMECC_IRQHandler(void)
+{
+  {{#each @root.nvic_context}}
+    {{#with (helper_ramecc_parse_nvic_context this)}}
+      {{#if generate_handler}}
+        {{#each @root.ramecc_ctx.additional.monitor}}
+          {{#if (or enable_single_interrupt enable_double_interrupt enable_double_on_byte_write_interrupt @root.ramecc_ctx.additional.controller.enable_global_interrupt @root.ramecc_ctx.additional.controller.enable_single_interrupt @root.ramecc_ctx.additional.controller.enable_double_interrupt @root.ramecc_ctx.additional.controller.enable_double_on_byte_write_interrupt)}}
+  /* Manage HAL_RAMECC_{{_foreignKey}} interrupts */
+  HAL_RAMECC_IRQHandler(HAL_RAMECC_{{_foreignKey}});
+            {{#unless @last}}
+
+            {{/unless}}
+          {{/if}}
+        {{/each}}
+      {{/if}}
+    {{/with}}
+  {{/each}}
+}
+{{else}}
+/******************************************************************************/
+/* RAMECC global interrupt (Grouping interrupts of all active RAMECC instances)*/
+/******************************************************************************/
+/* Managed directly in user code.
+void RAMECC_IRQHandler(void)
+{
+}
+*/
+{{/if}}
+{{/helper_common_beautifier}}

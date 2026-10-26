@@ -1,0 +1,1251 @@
+{{!--
+  ******************************************************************************
+  * @file           : mx_adf_template.c.hbs
+  * @brief          : {{@root.current_resource}} Peripheral initialization
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  ~--}}
+{{#helper_common_beautifier}}
+{{assign "codegen_ctxt" (helper_common_get_codegen_context 'ADF' (get '') @root.EnvVarAPI @root.peripheralsResourceManagerAPI @root.SWConfigurationAPI)~}}
+{{log "ADF template codegen_ctxt:" @root.codegen_ctxt~}}
+{{assign 'strategy' @root.codegen_ctxt.strategy~}}
+{{assign 'current_resource' @root.codegen_ctxt.current_resource~}}
+{{assign 'instances' @root.codegen_ctxt.instances~}}
+{{assign 'dma_resource' @root.codegen_ctxt.dma_resource~}}
+/**
+  ******************************************************************************
+  * @file           : mx_{{lowercase @root.current_resource}}.c
+  * @brief          : {{@root.current_resource}} Peripheral initialization
+{{> LICENSE}}
+
+/* Includes ------------------------------------------------------------------*/
+#include "mx_{{lowercase @root.current_resource}}.h"
+{{> RCC fct='include_rcc'}}
+
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
+/* Private functions prototype------------------------------------------------*/
+/* Exported variables by reference--------------------------------------------*/
+{{#each @root.instances~}}
+  {{~assign 'adf_cxt' config~}}
+  {{~assign 'current_resource' current_resource~}}
+  {{~assign 'current_layer' @root.adf_cxt.info.layer~}}
+  {{#if (eq @root.current_layer 'HAL')}}
+static hal_adf_handle_t h{{@root.current_resource}};
+  {{/if}}
+{{/each}}
+{{> GPIO_HAL fct='gpio_exti_get_variables' resource=@root.current_resource~}}
+{{> DMA_HAL fct='get_dma_handles' resource=@root.dma_resource strategy=@root.strategy}}
+
+{{assign 'hal_handle_exist' false~}}
+{{helper_common_initialize_index~}}
+{{assign 'current_index' (helper_common_get_index @root.current_resource)~}}
+{{assign 'nvic_context' 'undefined'~}}
+{{#each @root.instances}}
+  {{~assign 'adf_cxt' config~}}
+  {{~assign 'current_resource' current_resource~}}
+  {{~assign 'name' @root.adf_cxt.name~}}
+  {{~assign 'current_layer' @root.adf_cxt.info.layer~}}
+  {{~assign 'current_index' (helper_common_get_index @root.current_resource)~}}
+/********************************************/
+/* Exported functions for {{@root.current_resource}} in {{@root.current_layer}} layer */
+/********************************************/
+{{assign 'fct_name' (helper_common_get_generated_function_name @root.current_resource @root.current_layer @root.current_index)~}}
+{{assign 'current_index' (helper_common_inc_index @root.current_resource)~}}
+{{!
+    Generation of initialization function used in HAL
+}}
+{{#with @root.adf_cxt}}
+{{#if (eq @root.current_layer 'HAL')}}
+hal_adf_handle_t *{{@root.fct_name}}_init(void)
+{
+{{#each serial_interface}}
+{{#if use_channel}}
+  hal_adf_serial_interface_config_t sitf_{{_foreignKey}}_config;
+{{/if}}
+{{/each}}
+{{#each digital_filter}}
+{{#if use_channel}}
+  hal_adf_digital_filter_config_t dflt_{{_foreignKey}}_config;
+{{/if}}
+{{/each}}
+{{#each sound_activity_detector}}
+{{#if use_channel}}
+  hal_adf_sad_config_t sad_{{_foreignKey}}_config;
+{{/if}}
+{{/each}}
+
+  if (HAL_ADF_Init(&h{{@root.current_resource}}, HAL_{{uppercase @root.current_resource}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{> RCC fct='generate_peripheral_clock_activation' hw_resource=@root.current_resource}}
+{{> RCC fct='generate_kernel_clock' hw_resource=@root.current_resource}}
+
+  /* Global {{@root.current_resource}} configuration */
+  if (HAL_ADF_SetConfig(&h{{@root.current_resource}}, {{basic.processing_clock_divider}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{#with additional.common_output_clocks_configuration}}
+
+{{~#if (or (eq use_common_clock_0 true) (eq use_common_clock_1 true))}}
+{{#if (and (eq use_common_clock_0 true) (eq use_common_clock_1 true))}}
+  if (HAL_ADF_SetConfigOutputClock(&h{{@root.current_resource}}, HAL_ADF_OUTPUT_CLOCK_ALL, {{output_clock_divider}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{else}}
+{{#if use_common_clock_0}}
+  if (HAL_ADF_SetConfigOutputClock(&h{{@root.current_resource}}, HAL_ADF_OUTPUT_CLOCK_CCK0, {{output_clock_divider}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{else}}
+  if (HAL_ADF_SetConfigOutputClock(&h{{@root.current_resource}}, HAL_ADF_OUTPUT_CLOCK_CCK1, {{output_clock_divider}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}{{! use_common_clock_0 ~}}
+{{/if}}{{!(and (eq use_common_clock_0 true) (eq use_common_clock_1 true)) ~}}
+
+{{#if use_output_clock_trigger}}
+{{#if use_internal_trigger_for_output_clock}}
+  if (HAL_ADF_SetConfigOutputClockTrigger(&h{{@root.current_resource}}, HAL_ADF_OUT_CLOCK_TRIG_TRGO, HAL_ADF_OUT_CLOCK_TRIG_{{output_clock_trigger_edge}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{else}}
+  if (HAL_ADF_SetConfigOutputClockTrigger(&h{{@root.current_resource}}, HAL_ADF_OUT_CLOCK_TRIG_{{helper_adf_rename_clock_trigger output_clock_trigger_source.source}}, HAL_ADF_OUT_CLOCK_TRIG_{{output_clock_trigger_edge}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+  if (HAL_ADF_EnableOutputClockTrigger(&h{{@root.current_resource}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}{{! use_output_clock_trigger ~}}
+
+{{#if (and (eq use_common_clock_0 true) (eq use_common_clock_1 true))}}
+  if (HAL_ADF_EnableOutputClock(&h{{@root.current_resource}}, HAL_ADF_OUTPUT_CLOCK_ALL) != HAL_OK)
+  {
+    return NULL;
+  }
+{{else}}
+{{#if use_common_clock_0}}
+  if (HAL_ADF_EnableOutputClock(&h{{@root.current_resource}}, HAL_ADF_OUTPUT_CLOCK_CCK0) != HAL_OK)
+  {
+    return NULL;
+  }
+{{else}}
+  if (HAL_ADF_EnableOutputClock(&h{{@root.current_resource}}, HAL_ADF_OUTPUT_CLOCK_CCK1) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{/if}}{{! (and (eq use_common_clock_0 true) (eq use_common_clock_1 true)) ~}}
+
+{{/if}}{{! (or (eq use_common_clock_0 true) (eq use_common_clock_1 true)) ~}}
+{{/with}}{{! additional.common_output_clocks_configuration ~}}
+
+  if (HAL_ADF_Start(&h{{@root.current_resource}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{#each serial_interface}}
+{{#if use_channel}}
+
+  /* Serial interface {{_foreignKey}} configuration */
+  sitf_{{_foreignKey}}_config.mode = HAL_ADF_SITF_MODE_{{sitf_mode}};
+  sitf_{{_foreignKey}}_config.clock_source = HAL_ADF_SITF_CLOCK_SOURCE_{{clock_source}};
+  sitf_{{_foreignKey}}_config.threshold = {{sitf_threshold}}U;
+  if (HAL_ADF_SITF_SetConfig(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, &sitf_{{_foreignKey}}_config) != HAL_OK)
+  {
+    return NULL;
+  }
+  if (HAL_ADF_SITF_Start(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{/each~}}
+
+{{#each bitstream_matrix}}
+{{#if use_channel}}
+
+  /* Bitstream matrix {{_foreignKey}} configuration */
+  if (HAL_ADF_BSMX_SetConfig(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, HAL_ADF_BLOCK_INDEX_{{bitstream_source}}, HAL_ADF_BSMX_INPUT_{{bitstream_edge}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{/each~}}
+
+{{#each digital_filter}}
+{{#if use_channel}}
+
+  /* Digital filter {{_foreignKey}} configuration */
+{{#if dflt_main.dflt_data_source_bsmx}}
+  dflt_{{_foreignKey}}_config.data_source = HAL_ADF_DFLT_DATA_SOURCE_BSMX;
+{{else}}
+{{#if (contains dflt_main.dflt_data_source_adc.ip_signal "mdf_adc1")}}
+  dflt_{{_foreignKey}}_config.data_source = HAL_ADF_DFLT_DATA_SOURCE_ADCITF1;
+{{else}}
+  dflt_{{_foreignKey}}_config.data_source = HAL_ADF_DFLT_DATA_SOURCE_ADCITF2;
+{{/if}}
+{{/if}}
+  dflt_{{_foreignKey}}_config.cic_mode = HAL_ADF_DFLT_CIC_{{dflt_main.dflt_cic_mode}};
+  dflt_{{_foreignKey}}_config.decimation_ratio = {{dflt_main.dflt_decimation_ratio}}U;
+  dflt_{{_foreignKey}}_config.gain = {{dflt_main.dflt_gain_step}};
+  dflt_{{_foreignKey}}_config.acquisition_mode = HAL_ADF_DFLT_ACQ_MODE_{{dflt_main.dflt_acquisition_mode}};
+{{#if dflt_main.dflt_trigger.dflt_use_internal_trigger}}
+  dflt_{{_foreignKey}}_config.trigger.source = HAL_ADF_DFLT_TRIG_TRGO;
+{{else}}
+  dflt_{{_foreignKey}}_config.trigger.source = HAL_ADF_DFLT_TRIG_{{helper_adf_rename_filter_trigger dflt_main.dflt_trigger.dflt_external_trigger_source.source}};
+{{/if}}
+  dflt_{{_foreignKey}}_config.trigger.edge = HAL_ADF_DFLT_TRIG_{{dflt_main.dflt_trigger.dflt_trigger_edge}};
+  if (HAL_ADF_DFLT_SetConfig(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, &dflt_{{_foreignKey}}_config) != HAL_OK)
+  {
+    return NULL;
+  }
+{{#if dflt_additionnal.dflt_samples_delay_object.dflt_samples_delay_use}}
+  if (HAL_ADF_DFLT_SetSamplesDelay(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, {{dflt_additionnal.dflt_samples_delay_object.dflt_samples_delay_value}}U) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{#if dflt_additionnal.dflt_fifo_threshold_object.dflt_fifo_threshold_use}}
+  if (HAL_ADF_DFLT_SetFifoThreshold(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, HAL_ADF_DFLT_FIFO_THRESHOLD_{{dflt_additionnal.dflt_fifo_threshold_object.dflt_fifo_threshold_value}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{#if dflt_additionnal.dflt_discard_samples_object.dflt_discard_samples_use}}
+  if (HAL_ADF_DFLT_SetDiscardSamples(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, {{dflt_additionnal.dflt_discard_samples_object.dflt_discard_samples_value}}U) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{#if dflt_additionnal.dflt_reshape_filter_object.dflt_reshape_filter_use}}
+{{#if dflt_additionnal.dflt_reshape_filter_object.dflt_reshape_filter_bypass}}
+  if (HAL_ADF_DFLT_DisableReshapeFilter(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{else}}
+  if (HAL_ADF_DFLT_EnableReshapeFilter(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, HAL_ADF_DFLT_RSF_DR_{{dflt_additionnal.dflt_reshape_filter_object.dflt_reshape_filter_decimation_ratio}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{/if}}
+{{#if dflt_additionnal.dflt_high_pass_filter_object.dflt_high_pass_filter_use}}
+{{#if dflt_additionnal.dflt_high_pass_filter_object.dflt_high_pass_filter_bypass}}
+  if (HAL_ADF_DFLT_DisableHighPassFilter(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{else}}
+  if (HAL_ADF_DFLT_EnableHighPassFilter(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, HAL_ADF_DFLT_HPF_CUT_OFF_{{dflt_additionnal.dflt_high_pass_filter_object.dflt_high_pass_filter_cut_off_freq}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{/if}}
+{{/if}}
+{{/each~}}
+
+{{#each sound_activity_detector}}
+{{#if use_channel}}
+
+  /* Sound activity detector {{_foreignKey}} configuration */
+  sad_{{_foreignKey}}_config.mode = HAL_ADF_SAD_MODE_{{sad_main.mode}};
+  sad_{{_foreignKey}}_config.memory_transfer = HAL_ADF_SAD_MEMORY_TRANSFER_{{sad_main.memory_transfer}};
+  sad_{{_foreignKey}}_config.trigger_event = HAL_ADF_SAD_TRIGGER_{{sad_main.trigger_event}};
+  sad_{{_foreignKey}}_config.minimum_ambient_noise = {{sad_main.minimum_ambient_noise}}U;
+  if (HAL_ADF_SAD_SetConfig(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, &sad_{{_foreignKey}}_config) != HAL_OK)
+  {
+    return NULL;
+  }
+{{#if sad_additionnal.frame_size_objet.frame_size_use}}
+  if (HAL_ADF_SAD_SetFrameSize(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, HAL_ADF_SAD_FRAME_SIZE_{{sad_additionnal.frame_size_objet.frame_size_value}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{#if sad_additionnal.learning_frames_object.learning_frames_use}}
+  if (HAL_ADF_SAD_SetLearningFrames(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, HAL_ADF_SAD_LEARNING_FRAMES_{{sad_additionnal.learning_frames_object.learning_frames_value}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{#if sad_additionnal.signal_to_noise_threshold_object.signal_to_noise_threshold_use}}
+  if (HAL_ADF_SAD_SetSignalToNoiseThreshold(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, HAL_ADF_SAD_SIGNAL_TO_NOISE_{{sad_additionnal.signal_to_noise_threshold_object.signal_to_noise_threshold_value}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{#if sad_additionnal.ambient_noise_slope_object.ambient_noise_slope_use}}
+  if (HAL_ADF_SAD_SetAmbientNoiseSlope(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, {{sad_additionnal.ambient_noise_slope_object.ambient_noise_slope_value}}U) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{#if sad_additionnal.hangover_time_window_object.hangover_time_window_use}}
+  if (HAL_ADF_SAD_SetHangoverTimeWindow(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}, HAL_ADF_SAD_HANGOVER_TIME_{{sad_additionnal.hangover_time_window_object.hangover_time_window_value}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{#if sad_additionnal.hysteresis_object.hysteresis_value}}
+  if (HAL_ADF_SAD_EnableHysteresis(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}}) != HAL_OK)
+  {
+    return NULL;
+  }
+{{/if}}
+{{/if}}
+{{/each~}}
+
+{{> GPIO_HAL fct='init_resource' resource=@root.current_resource return_if_failed='NULL' init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+
+{{#with system}}
+{{#with dma}}
+{{#if dflt_0}}
+{{#with dflt_0}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 0 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_0, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_1}}
+{{#with dflt_1}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 1 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_1, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_2}}
+{{#with dflt_2}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 2 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_2, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_3}}
+{{#with dflt_3}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 3 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_3, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_4}}
+{{#with dflt_4}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 4 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_4, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_5}}
+{{#with dflt_5}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 5 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_5, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_6}}
+{{#with dflt_6}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 6 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_6, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_7}}
+{{#with dflt_7}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 7 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_7, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_8}}
+{{#with dflt_8}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 8 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_8, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_9}}
+{{#with dflt_9}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 9 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_9, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_10}}
+{{#with dflt_10}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 10 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_10, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_11}}
+{{#with dflt_11}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 11 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_11, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_12}}
+{{#with dflt_12}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 12 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_12, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_13}}
+{{#with dflt_13}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 13 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_13, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_14}}
+{{#with dflt_14}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 14 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_14, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_15}}
+{{#with dflt_15}}
+{{#if use_dma}}
+  /* Configure the DMA for digital filter 15 */
+{{#> DMA_HAL fct='init' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name}}
+{{/DMA_HAL}}
+  /* Link the DMA handle to the ADF handle */
+  if (HAL_ADF_SetDMA(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_15, &h{{@root.dma_channel_instance}}) != HAL_OK)
+  {
+    return NULL;
+  }
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{/with}}{{! dma ~}}
+
+{{#with nvic}}
+{{#if it_filter0}}
+{{#with it_filter0}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 0 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter1}}
+{{#with it_filter1}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 1 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter2}}
+{{#with it_filter2}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 2 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter3}}
+{{#with it_filter3}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 3 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter4}}
+{{#with it_filter4}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 4 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter5}}
+{{#with it_filter5}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 5 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter6}}
+{{#with it_filter6}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 6 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter7}}
+{{#with it_filter7}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 7 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter8}}
+{{#with it_filter8}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 8 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter9}}
+{{#with it_filter9}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 9 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter10}}
+{{#with it_filter10}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 10 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter11}}
+{{#with it_filter11}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 11 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter12}}
+{{#with it_filter12}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 12 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter13}}
+{{#with it_filter13}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 13 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter14}}
+{{#with it_filter14}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 14 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter15}}
+{{#with it_filter15}}
+{{#if enable_it}}
+  /* Enable the interruption for ADF block 15 */
+{{assign 'nvic_context' (helper_cortex_nvic_concatenate_irq_context  @root.nvic_context nvic_config.needs @root.current_resource irq_handler_generation)~}}
+{{#> CORTEX fct='init' layer=@root.current_layer needs=nvic_config.needs}}
+#warning "Partial HAL CORTEX is not present"
+{{/CORTEX}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{/with}}{{! nvic ~}}
+
+{{/with}}
+  return &h{{@root.current_resource}};
+}
+
+void {{@root.fct_name}}_deinit(void)
+{
+{{#with system}}
+{{#with nvic}}
+{{#if it_filter0}}
+{{#with it_filter0}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 0 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter1}}
+{{#with it_filter1}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 1 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter2}}
+{{#with it_filter2}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 2 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter3}}
+{{#with it_filter3}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 3 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter4}}
+{{#with it_filter4}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 4 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter5}}
+{{#with it_filter5}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 5 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter6}}
+{{#with it_filter6}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 6 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter7}}
+{{#with it_filter7}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 7 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter8}}
+{{#with it_filter8}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 8 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter9}}
+{{#with it_filter9}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 9 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter10}}
+{{#with it_filter10}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 10 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter11}}
+{{#with it_filter11}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 11 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter12}}
+{{#with it_filter12}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 12 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter13}}
+{{#with it_filter13}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 13 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter14}}
+{{#with it_filter14}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 14 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if it_filter15}}
+{{#with it_filter15}}
+{{#if enable_it}}
+  /* Disable the interruption for ADF block 15 */
+{{> CORTEX fct='deinit' layer=@root.current_layer needs=nvic_config.needs}}
+
+{{/if}}
+{{/with}}
+{{/if}}
+{{/with}}{{! nvic ~}}
+
+{{/with}}
+{{> RCC fct='kernel_clock_deinit' hw_resource=@root.current_resource}}
+{{#each serial_interface}}
+{{#if use_channel}}
+  (void)HAL_ADF_SITF_Stop(&h{{@root.current_resource}}, HAL_ADF_BLOCK_INDEX_{{_foreignKey}});
+{{/if}}
+{{/each}}
+  (void)HAL_ADF_Stop(&h{{@root.current_resource}});
+  (void)HAL_ADF_DeInit(&h{{@root.current_resource}});
+
+{{> RCC fct='generate_peripheral_clock_deactivation' hw_resource=@root.current_resource}}
+{{> RCC fct='generate_peripheral_clock_reset' hw_resource=@root.current_resource}}
+
+{{> GPIO_HAL fct='deinit_resource' resource=@root.current_resource}}
+
+{{#with system}}
+{{#with dma}}
+{{#if dflt_0}}
+{{#with dflt_0}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_1}}
+{{#with dflt_1}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_2}}
+{{#with dflt_2}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_3}}
+{{#with dflt_3}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_4}}
+{{#with dflt_4}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_5}}
+{{#with dflt_5}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_6}}
+{{#with dflt_6}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_7}}
+{{#with dflt_7}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_8}}
+{{#with dflt_8}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_9}}
+{{#with dflt_9}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_10}}
+{{#with dflt_10}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_11}}
+{{#with dflt_11}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_12}}
+{{#with dflt_12}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_13}}
+{{#with dflt_13}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_14}}
+{{#with dflt_14}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{#if dflt_15}}
+{{#with dflt_15}}
+{{#if use_dma}}
+{{> DMA_HAL fct='deinit' needs=config_dma.needs}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{/with}}{{! dma ~}}
+{{/with}}
+}
+
+{{#unless @root.hal_handle_exist}}
+{{assign 'fct_name' (helper_common_get_generated_function_name @root.current_resource @root.current_layer undefined)~}}
+{{!
+    Generation of getHandle functions used in HAL
+~}}
+hal_adf_handle_t *{{@root.fct_name}}_gethandle(void)
+{
+  return &h{{@root.current_resource}};
+}
+
+{{assign 'hal_handle_exist' true~}}
+{{/unless}}
+
+{{> GPIO_HAL fct='gpio_exti_gethandle' resource=@root.current_resource type='implementation'}}
+{{#with security_privilege}}
+  {{~assign 'getCurrentEngine' (@root.SwComposerAPI.getCurrentEngine)~}}
+  {{#if (eq @root.getCurrentEngine.secure 'Non-secure')}}
+system_status_t {{@root.fct_name}}_config_privilege(void)
+  {{else}}
+system_status_t {{@root.fct_name}}_config_security_privilege(void)
+  {{/if}}
+{
+  /*
+    Full access security path:
+    - Enable clock for RIF/RCC peripherals
+    - Configure the security/privilege items for ADF peripheral
+    - other ADF systems security/privilege configuration if any (DMA/GPIO/EXTI)
+    */
+{{#> RIF fct='rif_config_security' layer=@root.current_layer resource=@root.current_resource}}{{/RIF}}
+{{#> GTZC fct='gtzc_config_security' layer=@root.current_layer resource=@root.current_resource}}{{/GTZC}}
+
+{{#> DMA_HAL fct='dma_config_security' resource=@root.current_resource}}{{/DMA_HAL}}
+{{#> GPIO_HAL fct='gpio_config_security' resource=@root.current_resource}}{{/GPIO_HAL}}
+
+  return SYSTEM_OK;
+}
+
+{{/with}}
+{{> GPIO_HAL fct='init_resource_independently' resource=@root.current_resource init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+
+{{#with system}}
+{{#with dma}}
+{{#if dflt_0}}
+{{#with dflt_0}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_1}}
+{{#with dflt_1}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_2}}
+{{#with dflt_2}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_3}}
+{{#with dflt_3}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_4}}
+{{#with dflt_4}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_5}}
+{{#with dflt_5}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_6}}
+{{#with dflt_6}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_7}}
+{{#with dflt_7}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_8}}
+{{#with dflt_8}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_9}}
+{{#with dflt_9}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_10}}
+{{#with dflt_10}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_11}}
+{{#with dflt_11}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_12}}
+{{#with dflt_12}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_13}}
+{{#with dflt_13}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_14}}
+{{#with dflt_14}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+
+{{#if dflt_15}}
+{{#with dflt_15}}
+{{#if use_dma}}
+{{> DMA_HAL fct='init_independently' needs=config_dma.needs init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='implementation'}}
+{{/if}}
+{{/with}}
+{{/if}}
+{{/with}}
+{{/with}}
+{{/if}}{{! (eq @root.current_layer 'HAL') ~}}
+  {{/with}}
+{{/each}}{{! @root.instances ~}}
+
+{{assign 'irq_info_list' (helper_cortex_nvic_get_irqline_info_list @root.NvicAPI @root.nvic_context 'ADF')~}}
+{{#each @root.irq_info_list}}
+{{#if generate_handler}}
+/******************************************************************************/
+/*                     {{description}}                    */
+/******************************************************************************/
+void {{line}}_IRQHandler(void)
+{
+{{#if (eq component 'ADF')}}
+  HAL_{{component}}_IRQHandler(&h{{resource_hw}}, HAL_ADF_BLOCK_INDEX_{{helper_adf_get_index_from_line line}});
+{{else}}
+  HAL_{{component}}_IRQHandler(&h{{resource_hw}});
+{{/if}}
+}
+
+{{else}}
+/******************************************************************************/
+/*    {{description}} is managed directly in user code.   */
+/*
+void {{line}}_IRQHandler(void)
+{
+}
+  */
+/******************************************************************************/
+{{/if}}
+{{/each}}
+{{/helper_common_beautifier}}

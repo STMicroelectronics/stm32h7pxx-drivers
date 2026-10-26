@@ -1,0 +1,444 @@
+{{!--
+  ******************************************************************************
+  * @file           : mx_axim_template.c.hbs
+  * @brief          : AXIM Peripheral initialization
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  ~--}}
+{{#helper_common_beautifier}}
+{{assign "codegen_ctxt" (helper_common_get_codegen_context 'AXIM' (get '') @root.EnvVarAPI @root.peripheralsResourceManagerAPI @root.SWConfigurationAPI)~}}
+{{log "AXIM template codegen_ctxt:" @root.codegen_ctxt~}}
+{{assign 'strategy' @root.codegen_ctxt.strategy~}}
+{{assign 'current_resource' @root.codegen_ctxt.current_resource~}}
+{{assign 'instances' @root.codegen_ctxt.instances~}}
+{{~assign 'current_features' (@root.peripheralsResourceManagerAPI.getHardwareIpDescription "AXI interconnect (SoC IP)")~}}
+{{~log 'HardwareIpDescription' @root.current_features~}}
+
+{{> SYSTEM fct='system_check_ll_optim'}}
+/**
+  ******************************************************************************
+  * @file           : mx_axim.c
+  * @brief          : AXIM Peripheral initialization
+{{> LICENSE}}
+
+/* Includes ------------------------------------------------------------------*/
+#include "mx_axim.h"
+
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
+/* Private functions prototype------------------------------------------------*/
+/* Exported variables by reference--------------------------------------------*/
+
+{{#each @root.instances}}
+  {{~assign 'current_resource' current_resource~}}
+  {{~assign 'current_layer' config.info.layer~}}
+  {{~assign 'axim_cxt' config~}}
+/******************************************************************************/
+/* Exported functions for {{@root.current_resource}} in {{@root.current_layer}} layer                                  */
+/******************************************************************************/
+  {{~assign 'fct_name' (helper_common_get_generated_function_name 'AXIM' @root.current_layer 0)~}}
+  {{#with @root.axim_cxt}}
+
+system_status_t {{@root.fct_name}}_init(void)
+{
+
+    {{#if (eq @root.current_layer 'HAL')}}
+{{!
+    Generation of initialization function sed in HAL
+}}
+      {{~assign 'ini_config_generation' true}}
+      {{#each additional.initiators}}
+        {{~assign 'initiator' this._foreignKey}}
+        {{~assign 'use_channel' this.use_channel}}
+        {{~assign 'read_qos' this.read_qos}}
+        {{~assign 'read_qos_default' (helper_axim_ini_get_default_qos @root.current_features.features.initiators @root.initiator)}}
+        {{~assign 'write_qos' this.write_qos}}
+        {{~assign 'write_qos_default' (helper_axim_ini_get_default_qos @root.current_features.features.initiators @root.initiator)}}
+        {{~assign 'rw_iss' this.rw_iss}}
+        {{~assign 'packing' this.packing}}
+        {{~assign 'increment_override' this.increment_override}}
+        {{#if @root.use_channel}}
+          {{#if (helper_axim_at_least_two_true (and (not (eq @root.read_qos undefined)) (not (eq @root.read_qos @root.read_qos_default)))
+                                               (and (not (eq @root.write_qos undefined)) (not (eq @root.write_qos @root.write_qos_default)))
+                                               (not (eq @root.rw_iss "NORMAL"))
+                                               (and (not (eq @root.packing undefined)) (eq @root.packing false))
+                                               (and (not (eq @root.increment_override undefined)) (not (eq @root.increment_override "NORMAL"))))}}
+            {{#if (eq @root.ini_config_generation true)}}
+  hal_axim_ini_config_t p_axim_ini_config;
+              {{~assign 'ini_config_generation' false}}
+
+            {{/if}}
+            {{#if (not (eq @root.read_qos undefined))}}
+  p_axim_ini_config.read_qos           = {{@root.read_qos}};
+            {{/if}}
+            {{#if (not (eq @root.write_qos undefined))}}
+  p_axim_ini_config.write_qos          = {{@root.write_qos}};
+            {{/if}}
+  p_axim_ini_config.capability         = HAL_AXIM_ISSUING_{{@root.rw_iss}};
+            {{#if (not (eq @root.packing undefined))}}
+  p_axim_ini_config.packing            = HAL_AXIM_PACKING_{{#if @root.packing}}ENABLE{{else}}DISABLE{{/if}};
+            {{/if}}
+            {{#if (not (eq @root.increment_override undefined))}}
+  p_axim_ini_config.increment_override = HAL_AXIM_INCREMENT_{{@root.increment_override}};
+            {{/if}}
+
+  /* Configure AXIM Initiator */
+  if (HAL_AXIM_INI_SetConfig(HAL_AXIM_INI_{{@root.initiator}} , &p_axim_ini_config) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+
+          {{else}}
+            {{#if (and (not (eq @root.read_qos @root.read_qos_default)) (not (eq @root.read_qos undefined)))}}
+  /* Configure AXIM Initiator read QoS */
+  if (HAL_AXIM_INI_SetReadQoS(HAL_AXIM_INI_{{@root.initiator}}, {{@root.read_qos}}) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+
+            {{/if}}
+            {{#if (and (not (eq @root.write_qos @root.write_qos_default)) (not (eq @root.write_qos undefined)))}}
+  /* Configure AXIM Initiator write QoS */
+  if (HAL_AXIM_INI_SetWriteQoS(HAL_AXIM_INI_{{@root.initiator}}, {{@root.write_qos}}) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+
+            {{/if}}
+            {{#if (not (eq @root.rw_iss "NORMAL"))}}
+  /* Configure AXIM Initiator issuing capability */
+  if (HAL_AXIM_INI_SetIssuingCapability(HAL_AXIM_INI_{{@root.initiator}}, HAL_AXIM_ISSUING_{{@root.rw_iss}}) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+
+            {{/if}}
+            {{#if (and (eq @root.packing false) (not (eq @root.packing undefined)))}}
+  /* Disable AXIM Initiator packing */
+  if (HAL_AXIM_INI_DisablePacking(HAL_AXIM_INI_{{@root.initiator}}) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+
+            {{/if}}
+            {{#if (and (not (eq @root.increment_override "NORMAL")) (not (eq @root.increment_override undefined)))}}
+  /* Configure AXIM Initiator increment override */
+  if (HAL_AXIM_INI_SetIncrementOverride(HAL_AXIM_INI_{{@root.initiator}}, HAL_AXIM_INCREMENT_{{@root.increment_override}}) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+
+            {{/if}}
+          {{/if}}
+        {{/if}}
+      {{/each}}
+
+      {{~assign 'targ_config_generation' true}}
+      {{#each additional.targets}}
+        {{~assign 'target' this._foreignKey}}
+        {{~assign 'use_channel' this.use_channel}}
+        {{~assign 'bm_rw_iss' this.bm_rw_iss}}
+        {{~assign 'rw_iss' this.rw_iss}}
+        {{~assign 'packing' this.packing}}
+        {{~assign 'long_burst' this.long_burst}}
+        {{#if use_channel}}
+          {{#if (helper_axim_at_least_two_true (not (eq @root.bm_rw_iss "NORMAL"))
+                                               (and (not (eq @root.rw_iss undefined)) (not (eq @root.rw_iss "NORMAL")))
+                                               (and (not (eq @root.packing undefined)) (eq @root.packing false))
+                                               (and (not (eq @root.long_burst undefined)) (eq @root.long_burst true)))}}
+            {{#if (eq @root.targ_config_generation true)}}
+  hal_axim_targ_config_t p_axim_targ_config;
+              {{~assign 'targ_config_generation' false}}
+
+            {{/if}}
+  p_axim_targ_config.bus_matrix_capability = HAL_AXIM_ISSUING_{{@root.bm_rw_iss}};
+            {{#if (not (eq @root.rw_iss undefined))}}
+  p_axim_targ_config.capability            = HAL_AXIM_ISSUING_{{@root.rw_iss}};
+            {{/if}}
+            {{#if (not (eq @root.packing undefined))}}
+  p_axim_targ_config.packing               = HAL_AXIM_PACKING_{{#if @root.packing}}ENABLE{{else}}DISABLE{{/if}};
+            {{/if}}
+            {{#if (not (eq @root.long_burst undefined))}}
+  p_axim_targ_config.long_burst            = HAL_AXIM_LONG_BURST_{{#if @root.long_burst}}ENABLE{{else}}DISABLE{{/if}};
+            {{/if}}
+
+  /* Configure AXIM Target */
+  if (HAL_AXIM_TARG_SetConfig(HAL_AXIM_TARG_{{@root.target}} , &p_axim_targ_config) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+          {{else}}
+            {{#if (not (eq @root.bm_rw_iss "NORMAL"))}}
+  /* Configure AXIM Target bus matrix issuing capability */
+  if (HAL_AXIM_TARG_SetBusMatrixIssuingCapability(HAL_AXIM_TARG_{{@root.target}}, HAL_AXIM_ISSUING_{{@root.bm_rw_iss}}) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+            {{/if}}
+            {{#if (and (not (eq @root.rw_iss "NORMAL")) (not (eq @root.rw_iss undefined)))}}
+  /* Configure AXIM Target issuing capability */
+  if (HAL_AXIM_TARG_SetIssuingCapability(HAL_AXIM_TARG_{{@root.target}}, HAL_AXIM_ISSUING_{{@root.rw_iss}}) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+            {{/if}}
+            {{#if (and (eq @root.packing false) (not (eq @root.packing undefined)))}}
+  /* Disable packing for AXIM Target */
+  if (HAL_AXIM_TARG_DisablePacking(HAL_AXIM_TARG_{{@root.target}}) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+            {{/if}}
+              {{#if (and (eq @root.long_burst true) (not (eq @root.long_burst undefined)))}}
+  /* Enable long burst for AXIM Target */
+  if (HAL_AXIM_TARG_EnableLongBurst(HAL_AXIM_TARG_{{@root.target}}) != HAL_OK)
+  {
+    return SYSTEM_PERIPHERAL_ERROR;
+  }
+            {{/if}}
+          {{/if}}
+        {{/if}}
+      {{/each}}
+    {{else}}
+{{!
+    Generation of initialization function used in LL
+}}
+      {{#each additional.initiators}}
+        {{~assign 'initiator' this._foreignKey}}
+        {{~assign 'use_channel' this.use_channel}}
+        {{~assign 'read_qos' this.read_qos}}
+        {{~assign 'read_qos_default' (helper_axim_ini_get_default_qos @root.current_features.features.initiators @root.initiator)}}
+        {{~assign 'write_qos' this.write_qos}}
+        {{~assign 'write_qos_default' (helper_axim_ini_get_default_qos @root.current_features.features.initiators @root.initiator)}}
+        {{~assign 'rw_iss' this.rw_iss}}
+        {{~assign 'packing' this.packing}}
+        {{~assign 'increment_override' this.increment_override}}
+        {{#if @root.use_channel}}
+          {{#if (and (not (eq @root.read_qos @root.read_qos_default)) (not (eq @root.read_qos undefined)))}}
+  /* Configure read QoS for AXIM Initiator */
+  LL_AXIM_ASIB_SetReadQoS(LL_AXIM_ASIB_{{@root.initiator}}, {{@root.read_qos}});
+
+          {{/if}}
+          {{#if (and (not (eq @root.write_qos @root.write_qos_default)) (not (eq @root.write_qos undefined)))}}
+  /* Configure write QoS for AXIM Initiator */
+  LL_AXIM_ASIB_SetWriteQoS(LL_AXIM_ASIB_{{@root.initiator}}, {{@root.write_qos}});
+
+          {{/if}}
+          {{#if (not (eq @root.rw_iss "NORMAL"))}}
+  /* Configure issuing capability for AXIM Initiator */
+  LL_AXIM_ASIB_SetIssuingCapability(LL_AXIM_ASIB_{{@root.initiator}}, LL_AXIM_ISSUING_{{@root.rw_iss}});
+
+          {{/if}}
+          {{#if (and (eq @root.packing false) (not (eq @root.packing undefined)))}}
+  /* Disable AXIM Initiator packing */
+  LL_AXIM_ASIB_DisablePacking(LL_AXIM_ASIB_{{@root.initiator}});
+
+          {{/if}}
+          {{#if (and (not (eq @root.increment_override "NORMAL")) (not (eq @root.increment_override undefined)))}}
+  /* Configure AXIM Initiator increment override */
+  LL_AXIM_ASIB_SetIncrementOverride(LL_AXIM_ASIB_{{@root.initiator}}, LL_AXIM_INCREMENT_{{@root.increment_override}});
+
+          {{/if}}
+        {{/if}}
+      {{/each}}
+
+      {{#each additional.targets}}
+        {{~assign 'target' this._foreignKey}}
+        {{~assign 'use_channel' this.use_channel}}
+        {{~assign 'bm_rw_iss' this.bm_rw_iss}}
+        {{~assign 'rw_iss' this.rw_iss}}
+        {{~assign 'packing' this.packing}}
+        {{~assign 'long_burst' this.long_burst}}
+        {{#if use_channel}}
+          {{#if (not (eq @root.bm_rw_iss "NORMAL"))}}
+  /* Configure AXIM Target bus matrix issuing capability */
+  LL_AXIM_AMIB_SetBusMatrixIssuingCapability(LL_AXIM_AMIB_{{@root.target}}, LL_AXIM_ISSUING_{{@root.bm_rw_iss}});
+
+          {{/if}}
+          {{#if (and (not (eq @root.rw_iss "NORMAL")) (not (eq @root.rw_iss undefined)))}}
+  /* Configure AXIM Target issuing capability */
+  LL_AXIM_AMIB_SetIssuingCapability(LL_AXIM_AMIB_{{@root.target}}, LL_AXIM_ISSUING_{{@root.rw_iss}});
+
+          {{/if}}
+          {{#if (and (eq @root.packing false) (not (eq @root.packing undefined)))}}
+  /* Disable packing for AXIM Target */
+  LL_AXIM_AMIB_DisablePacking(LL_AXIM_AMIB_{{@root.target}});
+
+          {{/if}}
+          {{#if (and (eq @root.long_burst true) (not (eq @root.long_burst undefined)))}}
+  /* Enable long burst for AXIM Target */
+  LL_AXIM_AMIB_EnableLongBurst(LL_AXIM_AMIB_{{@root.target}});
+
+          {{/if}}
+        {{/if}}
+      {{/each}}
+    {{/if}}
+
+  return SYSTEM_OK;
+}
+
+void {{@root.fct_name}}_deinit(void)
+{
+    {{#if (eq @root.current_layer 'HAL')}}
+{{!
+    Generation of deinitialization function used in HAL
+}}
+      {{~assign 'ini_config_generation' true}}
+      {{#each additional.initiators}}
+        {{~assign 'initiator' this._foreignKey}}
+        {{~assign 'use_channel' this.use_channel}}
+        {{~assign 'read_qos' this.read_qos}}
+        {{~assign 'read_qos_default' (helper_axim_ini_get_default_qos @root.current_features.features.initiators @root.initiator)}}
+        {{~assign 'write_qos' this.write_qos}}
+        {{~assign 'write_qos_default' (helper_axim_ini_get_default_qos @root.current_features.features.initiators @root.initiator)}}
+        {{~assign 'packing' this.packing}}
+        {{~assign 'increment_override' this.increment_override}}
+        {{#if @root.use_channel}}
+          {{#if (and (eq @root.read_qos undefined) (eq @root.write_qos undefined) (eq @root.packing undefined) (eq @root.increment_override undefined))}}
+  /* Reset issuing capability for AXIM Initiator */
+  HAL_AXIM_INI_SetIssuingCapability(HAL_AXIM_INI_{{this._foreignKey}} , HAL_AXIM_ISSUING_NORMAL);
+
+          {{else}}
+            {{#if (eq @root.ini_config_generation true)}}
+  hal_axim_ini_config_t p_axim_ini_config;
+
+  p_axim_ini_config.capability         = HAL_AXIM_ISSUING_NORMAL;
+              {{~assign 'ini_config_generation' false}}
+            {{/if}}
+            {{#if (not (eq @root.read_qos undefined))}}
+  p_axim_ini_config.read_qos           = {{@root.read_qos_default}};
+            {{/if}}
+            {{#if (not (eq @root.write_qos undefined))}}
+  p_axim_ini_config.write_qos          = {{@root.write_qos_default}};
+            {{/if}}
+            {{#if (not (eq @root.packing undefined))}}
+  p_axim_ini_config.packing            = HAL_AXIM_PACKING_ENABLE;
+            {{/if}}
+            {{#if (not (eq @root.increment_override undefined))}}
+  p_axim_ini_config.increment_override = HAL_AXIM_INCREMENT_NORMAL;
+            {{/if}}
+
+  /* Reset AXIM Initiator */
+  HAL_AXIM_INI_SetConfig(HAL_AXIM_INI_{{@root.initiator}} , &p_axim_ini_config);
+
+          {{/if}}
+        {{/if}}
+      {{/each}}
+
+      {{~assign 'targ_config_generation' true}}
+      {{#each additional.targets}}
+        {{~assign 'target' this._foreignKey}}
+        {{~assign 'use_channel' this.use_channel}}
+        {{~assign 'bm_rw_iss' this.bm_rw_iss}}
+        {{~assign 'rw_iss' this.rw_iss}}
+        {{~assign 'packing' this.packing}}
+        {{~assign 'long_burst' this.long_burst}}
+        {{#if use_channel}}
+          {{#if (and (eq @root.rw_iss undefined) (eq @root.packing undefined) (eq @root.long_burst undefined))}}
+  /* Reset AXIM Target bus matrix issuing capability */
+  HAL_AXIM_TARG_SetBusMatrixIssuingCapability(HAL_AXIM_TARG_{{@root.target}}, HAL_AXIM_ISSUING_NORMAL);
+          {{else}}
+            {{#if (eq @root.targ_config_generation true)}}
+  hal_axim_targ_config_t p_axim_targ_config;
+
+  p_axim_targ_config.bus_matrix_capability = HAL_AXIM_ISSUING_NORMAL;
+              {{~assign 'targ_config_generation' false}}
+            {{/if}}
+            {{#if (not (eq @root.rw_iss undefined))}}
+  p_axim_targ_config.capability            = HAL_AXIM_ISSUING_NORMAL;
+            {{/if}}
+            {{#if (not (eq @root.packing undefined))}}
+  p_axim_targ_config.packing               = HAL_AXIM_PACKING_ENABLE;
+            {{/if}}
+            {{#if (not (eq @root.long_burst undefined))}}
+  p_axim_targ_config.long_burst            = HAL_AXIM_LONG_BURST_DISABLE;
+            {{/if}}
+
+  /* Reset AXIM Target */
+  HAL_AXIM_TARG_SetConfig(HAL_AXIM_TARG_{{@root.target}} , &p_axim_targ_config);
+
+          {{/if}}
+        {{/if}}
+      {{/each}}
+    {{else}}
+{{!
+    Generation of deinitialization function used in LL
+}}
+      {{#each additional.initiators}}
+        {{~assign 'initiator' this._foreignKey}}
+        {{~assign 'use_channel' this.use_channel}}
+        {{~assign 'read_qos' this.read_qos}}
+        {{~assign 'read_qos_default' (helper_axim_ini_get_default_qos @root.current_features.features.initiators @root.initiator)}}
+        {{~assign 'write_qos' this.write_qos}}
+        {{~assign 'write_qos_default' (helper_axim_ini_get_default_qos @root.current_features.features.initiators @root.initiator)}}
+        {{~assign 'packing' this.packing}}
+        {{~assign 'increment_override' this.increment_override}}
+        {{#if @root.use_channel}}
+          {{#if (not (eq @root.read_qos undefined))}}
+  /* Reset read QoS for AXIM Initiator */
+  LL_AXIM_ASIB_SetReadQoS(LL_AXIM_ASIB_{{@root.initiator}} , {{@root.read_qos_default}});
+
+          {{/if}}
+          {{#if (not (eq @root.write_qos undefined))}}
+  /* Reset write QoS for AXIM Initiator */
+  LL_AXIM_ASIB_SetWriteQoS(LL_AXIM_ASIB_{{@root.initiator}} , {{@root.write_qos_default}});
+
+          {{/if}}
+  /* Reset issuing capability for AXIM Initiator */
+  LL_AXIM_ASIB_SetIssuingCapability(LL_AXIM_ASIB_{{@root.initiator}} , LL_AXIM_ISSUING_NORMAL);
+
+          {{#if (not (eq @root.packing undefined))}}
+  /* Reset AXIM Initiator packing */
+  LL_AXIM_ASIB_EnablePacking(LL_AXIM_ASIB_{{@root.initiator}});
+
+          {{/if}}
+          {{#if (not (eq @root.increment_override undefined))}}
+  /* Reset AXIM Initiator increment override */
+  LL_AXIM_ASIB_SetIncrementOverride(LL_AXIM_ASIB_{{@root.initiator}}, LL_AXIM_INCREMENT_NORMAL);
+
+          {{/if}}
+        {{/if}}
+      {{/each}}
+      {{#each additional.targets}}
+        {{~assign 'target' this._foreignKey}}
+        {{~assign 'use_channel' this.use_channel}}
+        {{~assign 'rw_iss' this.rw_iss}}
+        {{~assign 'packing' this.packing}}
+        {{~assign 'long_burst' this.long_burst}}
+        {{#if use_channel}}
+  /* Reset AXIM Target bus matrix issuing capability */
+  LL_AXIM_AMIB_SetBusMatrixIssuingCapability(LL_AXIM_AMIB_{{@root.target}}, LL_AXIM_ISSUING_NORMAL);
+
+          {{#if (not (eq @root.rw_iss undefined))}}
+  /* Reset AXIM Target issuing capability */
+  LL_AXIM_AMIB_SetIssuingCapability(LL_AXIM_AMIB_{{@root.target}}, LL_AXIM_ISSUING_NORMAL);
+
+          {{/if}}
+          {{#if (not (eq @root.packing undefined))}}
+  /* Reset packing for AXIM Target */
+  LL_AXIM_AMIB_EnablePacking(LL_AXIM_AMIB_{{@root.target}});
+
+          {{/if}}
+          {{#if (not (eq @root.long_burst undefined))}}
+  /* Reset long burst for AXIM Target */
+  LL_AXIM_AMIB_DisableLongBurst(LL_AXIM_AMIB_{{@root.target}});
+
+          {{/if}}
+        {{/if}}
+      {{/each}}
+    {{/if}}
+}
+  {{/with}}
+{{/each}}
+{{/helper_common_beautifier}}

@@ -1,0 +1,243 @@
+{{!--
+  ******************************************************************************
+  * @file           : mx_cortex_mpu_template.c.hbs
+  * @brief          : {{uppercase @root.current_resource}} Peripheral initialization
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  ~--}}
+{{#helper_common_beautifier}}
+{{assign "codegen_ctxt" (helper_common_get_codegen_context 'CORTEX_MPU' (get '') @root.EnvVarAPI @root.peripheralsResourceManagerAPI @root.SWConfigurationAPI)~}}
+{{log "CORTEX_MPU template codegen_ctxt:" @root.codegen_ctxt~}}
+{{assign 'strategy' @root.codegen_ctxt.strategy~}}
+{{assign 'current_resource' @root.codegen_ctxt.current_resource~}}
+{{assign 'instances' @root.codegen_ctxt.instances~}}
+{{> SYSTEM fct='system_check_ll_optim'}}
+/**
+  ******************************************************************************
+  * @file           : mx_{{lowercase @root.current_resource}}.c
+  * @brief          : {{uppercase @root.current_resource}} Peripheral initialization
+{{> LICENSE}}
+
+/* Includes ------------------------------------------------------------------*/
+#include "mx_{{lowercase @root.current_resource}}.h"
+
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
+/* Private functions prototype------------------------------------------------*/
+/* Exported variables by reference--------------------------------------------*/
+{{#each @root.instances~}}
+  {{~assign 'cortex_mpu_cxt' config~}}
+  {{~log "CORTEX MPU template cortex_mpu_cxt:" (toJSON @root.cortex_mpu_cxt)~}}
+  {{~assign 'current_resource' current_resource~}}
+  {{~assign 'current_layer' @root.cortex_mpu_cxt.info.layer~}}
+  {{~log "CORTEX MPU template current_resource:" @root.current_resource~}}
+{{/each}}
+{{helper_common_initialize_index~}}
+{{~assign 'current_index' (helper_common_get_index @root.current_resource)~}}
+{{~assign 'nvic_context' 'undefined'~}}
+{{#each @root.instances}}
+  {{~assign 'cortex_mpu_cxt' config~}}
+  {{~assign 'current_resource' current_resource~}}
+  {{~assign 'current_layer' @root.cortex_mpu_cxt.info.layer~}}
+  {{~assign 'current_index' (helper_common_get_index @root.current_resource)~}}
+  {{! Initialize the context for LL code optimization ~}}
+  {{!~assign 'lut_table' (helper_cortex_mpu_get_lut_table 'CORTEX MPUV1')~}}
+  {{!~helper_common_initialize_ll_code @root.optim_enable @root.lut_table @root.current_resource~}}
+  {{~log "CORTEX MPU template instance:" (toJSON this)~}}
+/******************************************************************************/
+/* Exported functions for {{uppercase @root.current_resource}} in {{@root.current_layer}} layer */
+/******************************************************************************/
+  {{~assign 'fct_name' (helper_common_get_generated_function_name @root.current_resource @root.current_layer @root.current_index)~}}
+  {{~assign 'current_index' (helper_common_inc_index @root.current_resource)}}
+  {{#with @root.cortex_mpu_cxt}}
+    {{#if (eq @root.current_layer 'HAL')}}
+{{!
+    Generation of initialization function used in HAL
+}}
+
+system_status_t mx_cortex_mpu_init(void)
+{
+  /* Disables the MPU */
+  HAL_CORTEX_MPU_Disable();
+      {{~#if basic.mpu_enabled}}
+        {{~#with additional}}
+          {{~assign 'found_region' false}}
+          {{~#each regions}}
+            {{~#if use_region}}
+              {{~#unless @root.found_region}}
+                {{~assign 'found_region' true}}
+
+  /*
+     Initializes and configures the MPU Region
+  */
+  hal_cortex_mpu_region_config_t p_region_config = {0};
+              {{~/unless}}
+              {{~assign 'disable_subregion' (helper_cortex_mpu_get_disable_subregion subregions 'HAL')}}
+
+
+  p_region_config.base_addr = 0x{{#if (eq base_address 0)}}00000000{{else}}{{uppercase (dec2hex base_address)}}{{/if}};
+  p_region_config.size = HAL_CORTEX_MPU_REGION_SIZE_{{size}};
+  p_region_config.access_attr = HAL_CORTEX_MPU_REGION_{{access_permission}};
+  p_region_config.mem_attr = HAL_CORTEX_MPU_{{attributes.memory_type}}_MEM_{{attributes.shareability}}{{attributes.write_policy}}{{attributes.allocation_policy}};
+  p_region_config.exec_attr = HAL_CORTEX_MPU_EXECUTION_ATTR_{{#if instruction_access}}ENABLE{{else}}DISABLE{{/if}};
+              {{~#if @root.disable_subregion}}
+
+  p_region_config.sub_region = {{@root.disable_subregion}};
+              {{~else}}
+
+  p_region_config.sub_region = HAL_CORTEX_MPU_SUB_REGION_ENABLE_ALL;
+              {{~/if}}
+
+  HAL_CORTEX_MPU_SetConfigRegion(HAL_CORTEX_MPU_{{_foreignKey}}, &p_region_config);
+
+  HAL_CORTEX_MPU_EnableRegion(HAL_CORTEX_MPU_{{_foreignKey}});
+            {{~/if}}
+          {{~/each}}
+        {{~/with}}{{! additional}}
+
+
+  /* Enables the MPU */
+  HAL_CORTEX_MPU_Enable(HAL_CORTEX_MPU_HARDFAULT_NMI_{{#if basic.during_hardfault}}ENABLE{{else}}DISABLE{{/if}}, HAL_CORTEX_MPU_ACCESS_FAULT_{{#if basic.default_map_enabled}}ONLY_PRIV{{else}}ALL{{/if}});
+      {{~/if}}
+
+
+  return SYSTEM_OK;
+}
+
+void mx_cortex_mpu_deinit(void)
+{
+  /* Disables the MPU and MPU regions*/
+  HAL_CORTEX_MPU_Disable();
+
+{{~assign 'attrs' (JSONparse '[{"idx": 0}, {"idx": 1}, {"idx": 2}, {"idx": 3},
+                               {"idx": 4}, {"idx": 5}, {"idx": 6}, {"idx": 7}]')}}
+{{~assign 'regs' (helper_cortex_mpu_get_region_indexes @root.cortex_mpu_cxt.additional.regions)}}
+{{#each @root.regs}}
+
+  HAL_CORTEX_MPU_DisableRegion(HAL_CORTEX_MPU_REGION_{{idx}});
+{{~/each}}
+
+
+  /*
+     Deinitializes and configures the MPU Region to default
+  */
+  hal_cortex_mpu_region_config_t p_region_config = {0};
+
+  p_region_config.base_addr = 0x00000000;
+  p_region_config.size = HAL_CORTEX_MPU_REGION_SIZE_256B;
+  p_region_config.access_attr = HAL_CORTEX_MPU_REGION_ONLY_PRIV_RW;
+  p_region_config.mem_attr = HAL_CORTEX_MPU_SO_MEM_SHAREABLE;
+  p_region_config.exec_attr = HAL_CORTEX_MPU_EXECUTION_ATTR_ENABLE;
+  p_region_config.sub_region = HAL_CORTEX_MPU_SUB_REGION_ENABLE_ALL;
+{{#each @root.regs}}
+
+  HAL_CORTEX_MPU_SetConfigRegion(HAL_CORTEX_MPU_REGION_{{idx}}, &p_region_config);
+{{~/each}}
+
+}
+    {{~else}}
+{{!
+    Generation of initialization function used in CMSIS
+}}
+
+system_status_t mx_cortex_mpu_init(void)
+{
+  /* Disables the MPU */
+  ARM_MPU_Disable();
+      {{~#if basic.mpu_enabled}}
+        {{~#with additional}}
+          {{~assign 'found_region' false}}
+          {{~#each regions}}
+            {{~#if use_region}}
+              {{~#unless @root.found_region}}
+                {{~assign 'found_region' true}}
+
+  /*
+     Initializes and configures the MPU Region
+  */
+              {{~/unless}}
+              {{~#if instruction_access}}
+                {{~assign 'instr_access_value' 'HAL_CORTEX_MPU_EXECUTION_ATTR_ENABLE'}}
+              {{~else}}
+                {{~assign 'instr_access_value' 'HAL_CORTEX_MPU_EXECUTION_ATTR_DISABLE'}}
+              {{~/if}}
+              {{~assign 'disable_subregion' (helper_cortex_mpu_get_disable_subregion subregions 'LL')}}
+
+
+  ARM_MPU_SetRegionEx({{helper_cortex_mpu_get_arm_cmsis_value _foreignKey}}, 0x{{#if (eq base_address 0)}}00000000{{else}}{{uppercase (dec2hex base_address)}}{{/if}},
+                      ({{helper_cortex_mpu_get_arm_cmsis_value (concat 'HAL_CORTEX_MPU_REGION_SIZE_' size)}} << MPU_RASR_SIZE_Pos)
+                      | ({{helper_cortex_mpu_get_arm_cmsis_value (concat 'HAL_CORTEX_MPU_' (concat attributes.memory_type (concat '_MEM_' (concat attributes.shareability (concat attributes.write_policy attributes.allocation_policy)))))}} &  (MPU_RASR_TEX_Msk | MPU_RASR_B_Msk | MPU_RASR_S_Msk | MPU_RASR_C_Msk))
+                      | ({{helper_cortex_mpu_get_arm_cmsis_value (concat 'HAL_CORTEX_MPU_REGION_' access_permission)}} << MPU_RASR_AP_Pos)
+                      | ({{helper_cortex_mpu_get_arm_cmsis_value @root.instr_access_value}} << MPU_RASR_XN_Pos)
+                      | (0x{{#if @root.disable_subregion}}{{uppercase (dec2hex @root.disable_subregion)}}{{else}}00{{/if}} << MPU_RASR_SRD_Pos));
+
+
+  STM32_WRITE_REG(MPU->RNR, {{helper_cortex_mpu_get_arm_cmsis_value _foreignKey}});
+  STM32_SET_BIT(MPU->RASR, MPU_RASR_ENABLE_Msk);
+            {{~/if}}
+          {{~/each}}
+        {{~/with}}{{! additional}}
+
+
+  /* Enables the MPU */
+        {{~#if basic.during_hardfault}}
+          {{~assign 'mpu_hardfault' "HAL_CORTEX_MPU_HARDFAULT_NMI_ENABLE"}}
+        {{~else}}
+          {{~assign 'mpu_hardfault' "HAL_CORTEX_MPU_HARDFAULT_NMI_DISABLE"}}
+        {{~/if}}
+        {{~#if basic.default_map_enabled}}
+          {{~assign 'default_map' "HAL_CORTEX_MPU_ACCESS_FAULT_ONLY_PRIV"}}
+        {{~else}}
+          {{~assign 'default_map' "HAL_CORTEX_MPU_ACCESS_FAULT_ALL"}}
+        {{~/if}}
+
+  ARM_MPU_Enable({{helper_cortex_mpu_get_arm_cmsis_value @root.mpu_hardfault}} | {{helper_cortex_mpu_get_arm_cmsis_value @root.default_map}});
+      {{~/if}}
+
+
+  return SYSTEM_OK;
+}
+
+void mx_cortex_mpu_deinit(void)
+{
+  /* Disables the MPU */
+  ARM_MPU_Disable();
+{{~assign 'attrs' (JSONparse '[{"idx": 0}, {"idx": 1}, {"idx": 2}, {"idx": 3},
+                               {"idx": 4}, {"idx": 5}, {"idx": 6}, {"idx": 7}]')}}
+{{~assign 'regs' (helper_cortex_mpu_get_region_indexes @root.cortex_mpu_cxt.additional.regions)}}
+{{#each @root.regs}}
+
+  STM32_WRITE_REG(MPU->RNR, {{idx}});
+  STM32_CLEAR_BIT(MPU->RASR, MPU_RASR_ENABLE_Msk);
+{{~/each}}
+
+
+  /*
+     Deinitializes and configures the MPU Region to default
+  */
+{{~#each @root.regs}}
+
+  ARM_MPU_SetRegionEx({{idx}}, 0x00000000,
+                      (0x1B << MPU_RASR_SIZE_Pos)
+                      | (0x00000000 &  (MPU_RASR_TEX_Msk | MPU_RASR_B_Msk | MPU_RASR_S_Msk | MPU_RASR_C_Msk))
+                      | (0x01 << MPU_RASR_AP_Pos)
+                      | (0x00 << MPU_RASR_XN_Pos)
+                      | (0x00 << MPU_RASR_SRD_Pos));
+{{~/each}}
+
+}
+    {{~/if}}
+  {{~/with}}
+{{/each}}
+{{/helper_common_beautifier}}

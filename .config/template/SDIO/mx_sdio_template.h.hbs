@@ -1,0 +1,143 @@
+{{!--
+  ******************************************************************************
+  * @file           : mx_sdio_template.h.hbs
+  * @brief          : Header for mx_sdio_template.c.cbs file.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  ~--}}
+{{#helper_common_beautifier}}
+{{assign "codegen_ctxt" (helper_common_get_codegen_context 'SDIO' (get '') @root.EnvVarAPI @root.peripheralsResourceManagerAPI @root.SWConfigurationAPI)~}}
+{{log "SDIO template codegen_ctxt:" @root.codegen_ctxt~}}
+{{assign 'strategy' @root.codegen_ctxt.strategy~}}
+{{assign 'current_resource' @root.codegen_ctxt.current_resource~}}
+{{assign 'file_name' @root.codegen_ctxt.current_resource~}}
+{{assign 'instances' @root.codegen_ctxt.instances~}}
+/**
+  ******************************************************************************
+  * @file           : mx_{{lowercase resource}}.h
+  * @brief          : Header for mx_{{lowercase resource}}.c file.
+
+{{> LICENSE}}
+
+
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef MX_{{resource}}_H
+#define MX_{{resource}}_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+/* Includes ------------------------------------------------------------------*/
+{{assign 'include_mx_def' false~}}
+{{#each @root.instances~}}
+  {{~assign 'sdio_cxt' config~}}
+  {{~assign 'current_resource' current_resource~}}
+  {{~assign 'current_layer' @root.sdio_cxt.info.layer~}}
+  {{#with @root.sdio_cxt.security_privilege}}
+    {{#unless @root.include_mx_def}}
+      {{~assign 'include_mx_def' true~}}
+#include "mx_def.h"
+    {{/unless}}
+  {{/with}}
+{{#unless @root.include_mx_def}}
+{{#if (gt @root.codegen_ctxt.init_model 0)}}
+#include "mx_def.h"
+{{/if}}
+{{/unless}}
+{{/each}}
+#include "stm32_hal.h"
+
+/* Exported types ------------------------------------------------------------*/
+/* Exported constants --------------------------------------------------------*/
+{{helper_gpio_generate_aliases @root.pinoutAPI @root.current_resource @root.current_layer}}
+
+/* Exported macro ------------------------------------------------------------*/
+/* Exported variables --------------------------------------------------------*/
+/* Exported functions ------------------------------------------------------- */
+{{assign 'current_index' 0~}}
+{{#each instances}}
+{{assign 'sdio_cxt' config~}}
+{{assign 'current_resource' current_resource~}}
+{{assign 'current_layer' @root.sdio_cxt.info.layer~}}
+/******************************************************************************/
+/* Exported functions for SDIO in {{@root.current_layer}} layer */
+/******************************************************************************/
+{{assign 'fct_name' (helper_common_get_generated_function_name @root.current_resource @root.current_layer @root.current_index 'SDIO')~}}
+{{assign 'current_index' (add @root.current_index 1)~}}
+/**
+  * @brief {{@root.fct_name}} init function
+  * This function configures the hardware resources used in this example
+  * @retval pointer to handle or NULL in case of failure
+  */
+{{#if (eq @root.current_layer 'HAL')}}
+hal_sdio_handle_t *{{@root.fct_name}}_init(void);
+{{/if}}
+
+/**
+  * @brief  De-initialize {{lowercase @root.current_resource}} instance and return it.
+  */
+void {{@root.fct_name}}_deinit(void);
+{{#if (eq @root.sdio_cxt.basic.sdio_identify_card false)}}
+
+/**
+  * @brief  Set Configuration of the SDIO card module.
+  * @retval HAL_OK or HAL_ERROR in case of failure
+  */
+hal_status_t mx_sdio_set_config(hal_sdio_identify_card_t sdio_identify_card);
+{{/if}}
+
+{{/each}}
+{{#with @root.sdio_cxt.security_privilege}}
+{{#if (eq @root.getCurrentEngine.secure 'Non-secure')}}
+/******************************************************************************/
+/*                       Privilege attribute management                       */
+/******************************************************************************/
+/**
+  * @brief Peripheral privilege configuration function
+  * @retval system_status_t
+  */
+system_status_t {{@root.fct_name}}_config_privilege(void);
+{{else}}
+/******************************************************************************/
+/*               Security and privilege attributes management                 */
+/******************************************************************************/
+/**
+  * @brief Peripheral security and privilege configuration function
+  * @retval system_status_t
+  */
+system_status_t {{@root.fct_name}}_config_security_privilege(void);
+{{/if}}
+{{/with}}
+{{#if (eq @root.current_layer 'HAL')}}
+{{assign 'fct_name' (helper_common_get_generated_function_name @root.current_resource @root.current_layer undefined 'SDIO')~}}
+/**
+  * @brief  Get the {{@root.current_resource}} object.
+  * @retval Pointer on the {{@root.current_resource}} Handle
+  */
+hal_sdio_handle_t *{{@root.fct_name}}_gethandle(void);
+
+{{> GPIO_HAL fct='init_resource_independently' resource=@root.current_resource init_model=@root.codegen_ctxt.init_model fct_name=@root.fct_name type='prototype'}}
+
+{{> GPIO_HAL fct='gpio_exti_gethandle' resource=@root.current_resource type='prototype'}}
+{{/if}}
+
+
+{{> CORTEX fct='generate_irqhandler' type='prototype' component='SDIO'}}
+
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+
+#endif /* MX_{{resource}}_H */
+{{/helper_common_beautifier}}
